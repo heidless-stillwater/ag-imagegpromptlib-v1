@@ -16,6 +16,7 @@ const DEFAULT_USERS: User[] = [
         id: 'admin-001',
         email: 'admin@example.com',
         displayName: 'Admin User',
+        password: 'password',
         role: 'admin',
         isPublic: true,
         createdAt: '2024-01-01T00:00:00.000Z',
@@ -24,6 +25,7 @@ const DEFAULT_USERS: User[] = [
         id: 'member-001',
         email: 'member@example.com',
         displayName: 'Test Member',
+        password: 'password',
         role: 'member',
         isPublic: true,
         createdAt: '2024-01-01T00:00:00.000Z',
@@ -32,6 +34,7 @@ const DEFAULT_USERS: User[] = [
         id: 'member-002',
         email: 'jane@example.com',
         displayName: 'Jane Developer',
+        password: 'password',
         role: 'member',
         isPublic: true,
         createdAt: '2024-01-02T00:00:00.000Z',
@@ -40,6 +43,7 @@ const DEFAULT_USERS: User[] = [
         id: 'member-003',
         email: 'bob@example.com',
         displayName: 'Bob Artist',
+        password: 'password',
         role: 'member',
         isPublic: false,
         createdAt: '2024-01-03T00:00:00.000Z',
@@ -196,7 +200,10 @@ export async function registerUser(email: string, displayName: string, role: 'ad
 /**
  * Update user profile
  */
-export async function updateUserProfile(userId: string, updates: Partial<Pick<User, 'displayName' | 'isPublic'>>): Promise<User | null> {
+export async function updateUserProfile(
+    userId: string,
+    updates: Partial<Pick<User, 'displayName' | 'email' | 'password' | 'role' | 'isPublic' | 'username' | 'loginName' | 'avatarUrl' | 'avatarPrompt'>>
+): Promise<User | null> {
     const users = await getAllUsers();
     const userIndex = users.findIndex(u => u.id === userId);
 

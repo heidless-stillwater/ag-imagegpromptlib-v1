@@ -2,7 +2,12 @@
 export interface User {
     id: string;
     email: string;
+    username?: string;
+    loginName?: string;
     displayName: string;
+    avatarUrl?: string; // Base64 or external URL
+    avatarPrompt?: string; // Remembered prompt for AI generation
+    password?: string; // For mock auth
     role: 'admin' | 'member';
     isPublic: boolean; // For user directory visibility
     createdAt: string;

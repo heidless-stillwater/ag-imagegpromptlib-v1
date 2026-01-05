@@ -11,6 +11,7 @@ interface AuthContextType {
     login: (role: 'admin' | 'member') => Promise<void>;
     logout: () => Promise<void>;
     switchRole: (role: 'admin' | 'member') => Promise<void>;
+    refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -71,6 +72,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const refreshUser = async () => {
+        try {
+            const currentUser = await getCurrentUser();
+            setUser(currentUser);
+        } catch (error) {
+            console.error('Refresh user failed:', error);
+        }
+    };
+
     return (
         <AuthContext.Provider value={{
             user,
@@ -79,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             login,
             logout,
             switchRole,
+            refreshUser,
         }}>
             {children}
         </AuthContext.Provider>

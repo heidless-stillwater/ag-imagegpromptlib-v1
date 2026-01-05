@@ -97,6 +97,16 @@ export interface MediaImage {
     createdAt: string;
 }
 
+// Backup types
+export interface Backup {
+    id: string;
+    userId: string;
+    type: 'promptSet' | 'media' | 'all';
+    file: string; // Base64 or JSON string
+    fileName: string;
+    createdAt: string;
+}
+
 // Generation cache types
 export interface GenerationCache {
     promptHash: string;

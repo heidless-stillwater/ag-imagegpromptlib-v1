@@ -8,26 +8,36 @@ export function useNotifications() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
 
-    const refresh = () => {
-        setNotifications(getNotifications());
-        setUnreadCount(getUnreadNotificationCount());
+    const refresh = async () => {
+        try {
+            const [notifs, count] = await Promise.all([
+                getNotifications(),
+                getUnreadNotificationCount()
+            ]);
+            setNotifications(notifs);
+            setUnreadCount(count);
+        } catch (error) {
+            console.error('Failed to refresh notifications:', error);
+        }
     };
 
     useEffect(() => {
         refresh();
         // Poll for new notifications every 5 seconds
-        const interval = setInterval(refresh, 5000);
+        const interval = setInterval(() => {
+            refresh();
+        }, 5000);
         return () => clearInterval(interval);
     }, []);
 
-    const markAsRead = (id: string) => {
-        markNotificationRead(id);
-        refresh();
+    const markAsRead = async (id: string) => {
+        await markNotificationRead(id);
+        await refresh();
     };
 
-    const markAllAsRead = () => {
-        markAllNotificationsRead();
-        refresh();
+    const markAllAsRead = async () => {
+        await markAllNotificationsRead();
+        await refresh();
     };
 
     return {

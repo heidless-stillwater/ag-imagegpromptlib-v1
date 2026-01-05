@@ -12,22 +12,22 @@ import { getPromptSetById, duplicatePromptSet } from './promptSets';
 /**
  * Create a new share offer
  */
-export function createShare(promptSetId: string, recipientId: string): Share | null {
-    const currentUser = getCurrentUser();
+export async function createShare(promptSetId: string, recipientId: string): Promise<Share | null> {
+    const currentUser = await getCurrentUser();
     if (!currentUser) return null;
 
     // Cannot share to yourself
     if (currentUser.id === recipientId) return null;
 
     // Get the prompt set
-    const promptSet = getPromptSetById(promptSetId);
+    const promptSet = await getPromptSetById(promptSetId);
     if (!promptSet) return null;
 
     // Check if user owns this prompt set
     if (promptSet.userId !== currentUser.id) return null;
 
     // Check if recipient exists
-    const recipient = getUserById(recipientId);
+    const recipient = await getUserById(recipientId);
     if (!recipient) return null;
 
     const now = getTimestamp();
@@ -45,11 +45,11 @@ export function createShare(promptSetId: string, recipientId: string): Share | n
         createdAt: now,
     };
 
-    const shares = getCollection<Share>(STORAGE_KEYS.SHARES);
-    setCollection(STORAGE_KEYS.SHARES, [...shares, share]);
+    const shares = await getCollection<Share>(STORAGE_KEYS.SHARES);
+    await setCollection(STORAGE_KEYS.SHARES, [...shares, share]);
 
     // Create notification for recipient
-    createNotification(recipientId, 'share_received',
+    await createNotification(recipientId, 'share_received',
         `${currentUser.displayName} shared "${promptSet.title}" with you`,
         share.id
     );
@@ -60,11 +60,11 @@ export function createShare(promptSetId: string, recipientId: string): Share | n
 /**
  * Get incoming shares for current user
  */
-export function getIncomingShares(state?: Share['state']): Share[] {
-    const currentUser = getCurrentUser();
+export async function getIncomingShares(state?: Share['state']): Promise<Share[]> {
+    const currentUser = await getCurrentUser();
     if (!currentUser) return [];
 
-    const shares = getCollection<Share>(STORAGE_KEYS.SHARES);
+    const shares = await getCollection<Share>(STORAGE_KEYS.SHARES);
     let filtered = shares.filter(s => s.recipientId === currentUser.id);
 
     if (state) {
@@ -77,11 +77,11 @@ export function getIncomingShares(state?: Share['state']): Share[] {
 /**
  * Get outgoing shares for current user
  */
-export function getOutgoingShares(state?: Share['state']): Share[] {
-    const currentUser = getCurrentUser();
+export async function getOutgoingShares(state?: Share['state']): Promise<Share[]> {
+    const currentUser = await getCurrentUser();
     if (!currentUser) return [];
 
-    const shares = getCollection<Share>(STORAGE_KEYS.SHARES);
+    const shares = await getCollection<Share>(STORAGE_KEYS.SHARES);
     let filtered = shares.filter(s => s.senderId === currentUser.id);
 
     if (state) {
@@ -94,19 +94,19 @@ export function getOutgoingShares(state?: Share['state']): Share[] {
 /**
  * Get a specific share by ID
  */
-export function getShareById(id: string): Share | null {
-    const shares = getCollection<Share>(STORAGE_KEYS.SHARES);
+export async function getShareById(id: string): Promise<Share | null> {
+    const shares = await getCollection<Share>(STORAGE_KEYS.SHARES);
     return shares.find(s => s.id === id) || null;
 }
 
 /**
  * Accept a share
  */
-export function acceptShare(shareId: string): PromptSet | null {
-    const currentUser = getCurrentUser();
+export async function acceptShare(shareId: string): Promise<PromptSet | null> {
+    const currentUser = await getCurrentUser();
     if (!currentUser) return null;
 
-    const shares = getCollection<Share>(STORAGE_KEYS.SHARES);
+    const shares = await getCollection<Share>(STORAGE_KEYS.SHARES);
     const shareIndex = shares.findIndex(s => s.id === shareId);
 
     if (shareIndex === -1) return null;
@@ -141,8 +141,8 @@ export function acceptShare(shareId: string): PromptSet | null {
     };
 
     // Add to prompt sets
-    const promptSets = getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
-    setCollection(STORAGE_KEYS.PROMPT_SETS, [...promptSets, newPromptSet]);
+    const promptSets = await getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
+    await setCollection(STORAGE_KEYS.PROMPT_SETS, [...promptSets, newPromptSet]);
 
     // Update share state
     shares[shareIndex] = {
@@ -150,11 +150,11 @@ export function acceptShare(shareId: string): PromptSet | null {
         state: 'accepted',
         respondedAt: now,
     };
-    setCollection(STORAGE_KEYS.SHARES, shares);
+    await setCollection(STORAGE_KEYS.SHARES, shares);
 
     // Notify sender
-    const sender = getUserById(share.senderId);
-    createNotification(share.senderId, 'share_accepted',
+    const sender = await getUserById(share.senderId);
+    await createNotification(share.senderId, 'share_accepted',
         `${currentUser.displayName} accepted your share of "${share.promptSetSnapshot.title}"`,
         shareId
     );
@@ -165,11 +165,11 @@ export function acceptShare(shareId: string): PromptSet | null {
 /**
  * Reject a share
  */
-export function rejectShare(shareId: string): boolean {
-    const currentUser = getCurrentUser();
+export async function rejectShare(shareId: string): Promise<boolean> {
+    const currentUser = await getCurrentUser();
     if (!currentUser) return false;
 
-    const shares = getCollection<Share>(STORAGE_KEYS.SHARES);
+    const shares = await getCollection<Share>(STORAGE_KEYS.SHARES);
     const shareIndex = shares.findIndex(s => s.id === shareId);
 
     if (shareIndex === -1) return false;
@@ -190,10 +190,10 @@ export function rejectShare(shareId: string): boolean {
         state: 'rejected',
         respondedAt: now,
     };
-    setCollection(STORAGE_KEYS.SHARES, shares);
+    await setCollection(STORAGE_KEYS.SHARES, shares);
 
     // Notify sender
-    createNotification(share.senderId, 'share_rejected',
+    await createNotification(share.senderId, 'share_rejected',
         `${currentUser.displayName} declined your share of "${share.promptSetSnapshot.title}"`,
         shareId
     );
@@ -204,12 +204,12 @@ export function rejectShare(shareId: string): boolean {
 /**
  * Create a notification
  */
-function createNotification(
+async function createNotification(
     userId: string,
     type: Notification['type'],
     message: string,
     relatedShareId?: string
-): Notification {
+): Promise<Notification> {
     const notification: Notification = {
         id: generateId(),
         userId,
@@ -220,8 +220,8 @@ function createNotification(
         createdAt: getTimestamp(),
     };
 
-    const notifications = getCollection<Notification>(STORAGE_KEYS.NOTIFICATIONS);
-    setCollection(STORAGE_KEYS.NOTIFICATIONS, [...notifications, notification]);
+    const notifications = await getCollection<Notification>(STORAGE_KEYS.NOTIFICATIONS);
+    await setCollection(STORAGE_KEYS.NOTIFICATIONS, [...notifications, notification]);
 
     return notification;
 }
@@ -229,11 +229,11 @@ function createNotification(
 /**
  * Get notifications for current user
  */
-export function getNotifications(unreadOnly = false): Notification[] {
-    const currentUser = getCurrentUser();
+export async function getNotifications(unreadOnly = false): Promise<Notification[]> {
+    const currentUser = await getCurrentUser();
     if (!currentUser) return [];
 
-    const notifications = getCollection<Notification>(STORAGE_KEYS.NOTIFICATIONS);
+    const notifications = await getCollection<Notification>(STORAGE_KEYS.NOTIFICATIONS);
     let filtered = notifications.filter(n => n.userId === currentUser.id);
 
     if (unreadOnly) {
@@ -248,8 +248,8 @@ export function getNotifications(unreadOnly = false): Notification[] {
 /**
  * Mark notification as read
  */
-export function markNotificationRead(id: string): boolean {
-    const notifications = getCollection<Notification>(STORAGE_KEYS.NOTIFICATIONS);
+export async function markNotificationRead(id: string): Promise<boolean> {
+    const notifications = await getCollection<Notification>(STORAGE_KEYS.NOTIFICATIONS);
     const notifIndex = notifications.findIndex(n => n.id === id);
 
     if (notifIndex === -1) return false;
@@ -259,28 +259,29 @@ export function markNotificationRead(id: string): boolean {
         read: true,
     };
 
-    setCollection(STORAGE_KEYS.NOTIFICATIONS, notifications);
+    await setCollection(STORAGE_KEYS.NOTIFICATIONS, notifications);
     return true;
 }
 
 /**
  * Mark all notifications as read
  */
-export function markAllNotificationsRead(): void {
-    const currentUser = getCurrentUser();
+export async function markAllNotificationsRead(): Promise<void> {
+    const currentUser = await getCurrentUser();
     if (!currentUser) return;
 
-    const notifications = getCollection<Notification>(STORAGE_KEYS.NOTIFICATIONS);
+    const notifications = await getCollection<Notification>(STORAGE_KEYS.NOTIFICATIONS);
     const updated = notifications.map(n =>
         n.userId === currentUser.id ? { ...n, read: true } : n
     );
 
-    setCollection(STORAGE_KEYS.NOTIFICATIONS, updated);
+    await setCollection(STORAGE_KEYS.NOTIFICATIONS, updated);
 }
 
 /**
  * Get unread notification count
  */
-export function getUnreadNotificationCount(): number {
-    return getNotifications(true).length;
+export async function getUnreadNotificationCount(): Promise<number> {
+    const notifs = await getNotifications(true);
+    return notifs.length;
 }

@@ -8,9 +8,9 @@ interface AuthContextType {
     user: User | null;
     isLoading: boolean;
     isAdmin: boolean;
-    login: (role: 'admin' | 'member') => void;
-    logout: () => void;
-    switchRole: (role: 'admin' | 'member') => void;
+    login: (role: 'admin' | 'member') => Promise<void>;
+    logout: () => Promise<void>;
+    switchRole: (role: 'admin' | 'member') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,25 +20,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Check for existing session
-        const currentUser = getCurrentUser();
-        setUser(currentUser);
-        setIsLoading(false);
+        const initAuth = async () => {
+            try {
+                // Check for existing session
+                const currentUser = await getCurrentUser();
+                setUser(currentUser);
+            } catch (error) {
+                console.error('Failed to initialize auth:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        initAuth();
     }, []);
 
-    const login = (role: 'admin' | 'member') => {
-        const loggedInUser = loginWithRole(role);
-        setUser(loggedInUser);
+    const login = async (role: 'admin' | 'member') => {
+        setIsLoading(true);
+        try {
+            const loggedInUser = await loginWithRole(role);
+            setUser(loggedInUser);
+        } catch (error) {
+            console.error('Login failed:', error);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const logout = () => {
-        authLogout();
-        setUser(null);
+    const logout = async () => {
+        setIsLoading(true);
+        try {
+            await authLogout();
+            setUser(null);
+        } catch (error) {
+            console.error('Logout failed:', error);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const switchRole = (role: 'admin' | 'member') => {
-        const updatedUser = authSwitchRole(role);
-        setUser(updatedUser);
+    const switchRole = async (role: 'admin' | 'member') => {
+        setIsLoading(true);
+        try {
+            const updatedUser = await authSwitchRole(role);
+            setUser(updatedUser);
+        } catch (error) {
+            console.error('Switch role failed:', error);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (

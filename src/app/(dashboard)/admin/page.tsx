@@ -42,16 +42,25 @@ export default function AdminPage() {
         loadData();
     }, [isAdmin]);
 
-    const loadData = () => {
-        setPromptSets(getPromptSets());
-        setCategories(getCategories());
-        setUsers(getAllUsers());
+    const loadData = async () => {
+        try {
+            const [sets, cats, allUsers] = await Promise.all([
+                getPromptSets(),
+                getCategories(),
+                getAllUsers()
+            ]);
+            setPromptSets(sets);
+            setCategories(cats);
+            setUsers(allUsers);
+        } catch (error) {
+            console.error('Failed to load admin data:', error);
+        }
     };
 
-    const handleDeletePromptSet = (id: string) => {
+    const handleDeletePromptSet = async (id: string) => {
         if (confirm('Are you sure you want to delete this prompt set?')) {
-            deletePromptSet(id);
-            loadData();
+            await deletePromptSet(id);
+            await loadData();
         }
     };
 
@@ -70,30 +79,30 @@ export default function AdminPage() {
         setIsCategoryModalOpen(true);
     };
 
-    const handleSaveCategory = () => {
+    const handleSaveCategory = async () => {
         if (!categoryName.trim()) return;
 
         if (editingCategory) {
-            updateCategory(editingCategory.id, {
+            await updateCategory(editingCategory.id, {
                 name: categoryName,
                 description: categoryDescription,
             });
         } else {
-            createCategory({
+            await createCategory({
                 name: categoryName,
                 description: categoryDescription,
                 isSystem: isSystemCategory,
             });
         }
 
-        loadData();
+        await loadData();
         setIsCategoryModalOpen(false);
     };
 
-    const handleDeleteCategory = (id: string) => {
+    const handleDeleteCategory = async (id: string) => {
         if (confirm('Delete this category?')) {
-            deleteCategory(id);
-            loadData();
+            await deleteCategory(id);
+            await loadData();
         }
     };
 

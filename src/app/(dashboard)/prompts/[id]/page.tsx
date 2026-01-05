@@ -52,20 +52,34 @@ export default function PromptDetailPage() {
         loadData();
     }, [promptSetId]);
 
-    const loadData = () => {
-        const set = getPromptSetById(promptSetId);
-        if (!set) {
-            router.push('/dashboard');
-            return;
-        }
-        setPromptSet(set);
-        setCategories(getCategories());
-        setAverageRating(getAverageRating(promptSetId));
-        const rating = getUserRating(promptSetId);
-        setUserRating(rating?.score || 0);
+    const loadData = async () => {
+        try {
+            const [set, cats] = await Promise.all([
+                getPromptSetById(promptSetId),
+                getCategories()
+            ]);
 
-        if (set.versions.length > 0 && !selectedVersion) {
-            setSelectedVersion(set.versions[set.versions.length - 1]);
+            if (!set) {
+                router.push('/dashboard');
+                return;
+            }
+
+            setPromptSet(set);
+            setCategories(cats);
+
+            const [avgRating, rating] = await Promise.all([
+                getAverageRating(promptSetId),
+                getUserRating(promptSetId)
+            ]);
+
+            setAverageRating(avgRating);
+            setUserRating(rating?.score || 0);
+
+            if (set.versions.length > 0 && !selectedVersion) {
+                setSelectedVersion(set.versions[set.versions.length - 1]);
+            }
+        } catch (error) {
+            console.error('Failed to load prompt detail data:', error);
         }
     };
 
@@ -78,43 +92,44 @@ export default function PromptDetailPage() {
         setIsEditModalOpen(true);
     };
 
-    const handleSaveEdit = () => {
+    const handleSaveEdit = async () => {
         if (!promptSet || !editTitle.trim()) return;
 
-        updatePromptSet(promptSet.id, {
+        await updatePromptSet(promptSet.id, {
             title: editTitle,
             description: editDescription,
             categoryId: editCategoryId || undefined,
             notes: editNotes,
         });
 
-        loadData();
+        await loadData();
         setIsEditModalOpen(false);
     };
 
-    const handleAddVersion = () => {
+    const handleAddVersion = async () => {
         if (!promptSet || !newVersionPrompt.trim()) return;
 
-        addVersion(promptSet.id, newVersionPrompt, newVersionNotes);
-        loadData();
+        await addVersion(promptSet.id, newVersionPrompt, newVersionNotes);
+        await loadData();
         setIsVersionModalOpen(false);
         setNewVersionPrompt('');
         setNewVersionNotes('');
     };
 
-    const handleDeleteVersion = (versionId: string) => {
+    const handleDeleteVersion = async (versionId: string) => {
         if (!promptSet) return;
         if (!confirm('Delete this version?')) return;
 
-        deleteVersion(promptSet.id, versionId);
-        loadData();
+        await deleteVersion(promptSet.id, versionId);
+        await loadData();
         setSelectedVersion(null);
     };
 
-    const handleRating = (score: number) => {
-        ratePromptSet(promptSetId, score);
+    const handleRating = async (score: number) => {
+        await ratePromptSet(promptSetId, score);
         setUserRating(score);
-        setAverageRating(getAverageRating(promptSetId));
+        const avg = await getAverageRating(promptSetId);
+        setAverageRating(avg);
     };
 
     const handlePrepareGenerate = async (version: PromptVersion) => {
@@ -127,27 +142,37 @@ export default function PromptDetailPage() {
         setIsGenerateModalOpen(true);
     };
 
-    const handleGenerate = async () => {
+    const handleGenerate = async (mode: 'unsplash' | 'test' | 'live' = 'live') => {
         if (!selectedVersion || !promptSet) return;
 
-        setIsGenerating(true);
+        setIsGenerating(mode === 'test' ? false : true); // Show spinner for images, but maybe just button loading for test
         setGenerateError('');
+        const isTest = mode === 'test';
 
-        const result = await generateImage(selectedVersion.promptText);
+        try {
+            const result = await generateImage(selectedVersion.promptText, mode);
 
-        if (result.success && result.imageUrl) {
-            // Update version with image
-            updateVersion(promptSet.id, selectedVersion.id, {
-                imageUrl: result.imageUrl,
-                imageGeneratedAt: new Date().toISOString(),
-            });
-            loadData();
-            setIsGenerateModalOpen(false);
-        } else {
-            setGenerateError(result.error || 'Failed to generate image');
+            if (result.success) {
+                if (isTest) {
+                    alert('NanoBanana connection verified successfully! (Zero tokens used)');
+                    setIsGenerateModalOpen(false);
+                } else if (result.imageUrl) {
+                    // Update version with image
+                    await updateVersion(promptSet.id, selectedVersion.id, {
+                        imageUrl: result.imageUrl,
+                        imageGeneratedAt: new Date().toISOString(),
+                    });
+                    await loadData();
+                    setIsGenerateModalOpen(false);
+                }
+            } else {
+                setGenerateError(result.error || 'Failed to generate image');
+            }
+        } catch (err) {
+            setGenerateError('An unexpected error occurred during generation.');
+        } finally {
+            setIsGenerating(false);
         }
-
-        setIsGenerating(false);
     };
 
     if (!promptSet) {
@@ -374,13 +399,13 @@ export default function PromptDetailPage() {
                             <img src={cachedImage} alt="Cached" className={styles.previewImage} />
                             <div className={styles.formActions}>
                                 <Button variant="secondary" onClick={() => setIsGenerateModalOpen(false)}>Cancel</Button>
-                                <Button onClick={() => {
+                                <Button onClick={async () => {
                                     if (selectedVersion && promptSet) {
-                                        updateVersion(promptSet.id, selectedVersion.id, {
+                                        await updateVersion(promptSet.id, selectedVersion.id, {
                                             imageUrl: cachedImage,
                                             imageGeneratedAt: new Date().toISOString(),
                                         });
-                                        loadData();
+                                        await loadData();
                                         setIsGenerateModalOpen(false);
                                     }
                                 }}>Use Cached Image</Button>
@@ -393,8 +418,42 @@ export default function PromptDetailPage() {
                                 <p>Please confirm you want to generate an image with the following prompt:</p>
                             </div>
 
-                            <div className={styles.promptPreview}>
-                                <p>{selectedVersion?.promptText}</p>
+                            <div className={styles.optionsGrid}>
+                                <button
+                                    className={styles.optionCard}
+                                    onClick={() => handleGenerate('unsplash')}
+                                    disabled={isGenerating}
+                                >
+                                    <span className={styles.optionIcon}>🖼️</span>
+                                    <div className={styles.optionContent}>
+                                        <span className={styles.optionTitle}>Unsplash Placeholder</span>
+                                        <span className={styles.optionDesc}>Quick preview, no API cost</span>
+                                    </div>
+                                </button>
+
+                                <button
+                                    className={styles.optionCard}
+                                    onClick={() => handleGenerate('test')}
+                                    disabled={isGenerating}
+                                >
+                                    <span className={styles.optionIcon}>🔌</span>
+                                    <div className={styles.optionContent}>
+                                        <span className={styles.optionTitle}>Test Connection</span>
+                                        <span className={styles.optionDesc}>Verify API (zero tokens)</span>
+                                    </div>
+                                </button>
+
+                                <button
+                                    className={`${styles.optionCard} ${styles.primaryOption}`}
+                                    onClick={() => handleGenerate('live')}
+                                    disabled={isGenerating}
+                                >
+                                    <span className={styles.optionIcon}>✨</span>
+                                    <div className={styles.optionContent}>
+                                        <span className={styles.optionTitle}>Submit Live</span>
+                                        <span className={styles.optionDesc}>Actual AI generation</span>
+                                    </div>
+                                </button>
                             </div>
 
                             {generateError && (
@@ -403,12 +462,7 @@ export default function PromptDetailPage() {
 
                             <div className={styles.formActions}>
                                 <Button variant="secondary" onClick={() => setIsGenerateModalOpen(false)}>Cancel</Button>
-                                <Button
-                                    onClick={handleGenerate}
-                                    isLoading={isGenerating}
-                                >
-                                    ✓ Generate Image
-                                </Button>
+                                {isGenerating && <span className={styles.generatingState}>Generating...</span>}
                             </div>
                         </>
                     )}

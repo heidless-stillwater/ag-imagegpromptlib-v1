@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Share } from '@/types';
+import { Share, User } from '@/types';
 import { getIncomingShares, getOutgoingShares, acceptShare, rejectShare } from '@/services/shares';
-import { getUserById } from '@/services/auth';
+import { getUserById, getAllUsers } from '@/services/auth';
 import { useNotifications } from '@/hooks/useNotifications';
 import Button from '@/components/ui/Button';
 import styles from './page.module.css';
@@ -18,26 +18,46 @@ export default function SharesPage() {
     const [incomingShares, setIncomingShares] = useState<Share[]>([]);
     const [outgoingShares, setOutgoingShares] = useState<Share[]>([]);
 
+    const [users, setUsers] = useState<User[]>([]);
+
     useEffect(() => {
         loadShares();
     }, [user]);
 
-    const loadShares = () => {
-        setIncomingShares(getIncomingShares());
-        setOutgoingShares(getOutgoingShares());
+    const loadShares = async () => {
+        try {
+            const [incoming, outgoing, allUsers] = await Promise.all([
+                getIncomingShares(),
+                getOutgoingShares(),
+                getAllUsers()
+            ]);
+            setIncomingShares(incoming);
+            setOutgoingShares(outgoing);
+            setUsers(allUsers);
+        } catch (error) {
+            console.error('Failed to load shares data:', error);
+        }
     };
 
-    const handleAccept = (shareId: string) => {
-        acceptShare(shareId);
-        loadShares();
-        refreshNotifications();
-    };
-
-    const handleReject = (shareId: string) => {
-        if (confirm('Are you sure you want to reject this share?')) {
-            rejectShare(shareId);
-            loadShares();
+    const handleAccept = async (shareId: string) => {
+        try {
+            await acceptShare(shareId);
+            await loadShares();
             refreshNotifications();
+        } catch (error) {
+            console.error('Failed to accept share:', error);
+        }
+    };
+
+    const handleReject = async (shareId: string) => {
+        if (confirm('Are you sure you want to reject this share?')) {
+            try {
+                await rejectShare(shareId);
+                await loadShares();
+                refreshNotifications();
+            } catch (error) {
+                console.error('Failed to reject share:', error);
+            }
         }
     };
 
@@ -52,7 +72,8 @@ export default function SharesPage() {
     };
 
     const renderShareItem = (share: Share, type: 'incoming' | 'outgoing') => {
-        const otherUser = getUserById(type === 'incoming' ? share.senderId : share.recipientId);
+        const otherUserId = type === 'incoming' ? share.senderId : share.recipientId;
+        const otherUser = users.find(u => u.id === otherUserId);
 
         return (
             <div key={share.id} className={styles.shareItem}>

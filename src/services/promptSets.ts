@@ -11,9 +11,10 @@ import { getCurrentUser, isAdmin } from './auth';
 /**
  * Get all prompt sets (admin sees all, members see their own)
  */
-export function getPromptSets(userId?: string): PromptSet[] {
-    const allSets = getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
-    const currentUser = getCurrentUser();
+export async function getPromptSets(userId?: string): Promise<PromptSet[]> {
+    const allSets = await getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
+    const currentUser = await getCurrentUser();
+    const adminMode = await isAdmin();
 
     // If specific userId provided, filter by that
     if (userId) {
@@ -21,7 +22,7 @@ export function getPromptSets(userId?: string): PromptSet[] {
     }
 
     // Admin sees all
-    if (isAdmin()) {
+    if (adminMode) {
         return allSets;
     }
 
@@ -36,16 +37,17 @@ export function getPromptSets(userId?: string): PromptSet[] {
 /**
  * Get a single prompt set by ID
  */
-export function getPromptSetById(id: string): PromptSet | null {
-    const allSets = getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
+export async function getPromptSetById(id: string): Promise<PromptSet | null> {
+    const allSets = await getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
     const set = allSets.find(s => s.id === id);
 
     if (!set) return null;
 
-    const currentUser = getCurrentUser();
+    const currentUser = await getCurrentUser();
+    const adminMode = await isAdmin();
 
     // Admin can access any
-    if (isAdmin()) return set;
+    if (adminMode) return set;
 
     // Member can only access their own
     if (currentUser && set.userId === currentUser.id) return set;
@@ -56,14 +58,14 @@ export function getPromptSetById(id: string): PromptSet | null {
 /**
  * Create a new prompt set
  */
-export function createPromptSet(data: {
+export async function createPromptSet(data: {
     title: string;
     description?: string;
     categoryId?: string;
     notes?: string;
     initialPrompt?: string;
-}): PromptSet | null {
-    const currentUser = getCurrentUser();
+}): Promise<PromptSet | null> {
+    const currentUser = await getCurrentUser();
 
     if (!currentUser) return null;
 
@@ -94,8 +96,8 @@ export function createPromptSet(data: {
         updatedAt: now,
     };
 
-    const allSets = getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
-    setCollection(STORAGE_KEYS.PROMPT_SETS, [...allSets, newSet]);
+    const allSets = await getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
+    await setCollection(STORAGE_KEYS.PROMPT_SETS, [...allSets, newSet]);
 
     return newSet;
 }
@@ -103,20 +105,21 @@ export function createPromptSet(data: {
 /**
  * Update a prompt set
  */
-export function updatePromptSet(
+export async function updatePromptSet(
     id: string,
     updates: Partial<Pick<PromptSet, 'title' | 'description' | 'categoryId' | 'notes'>>
-): PromptSet | null {
-    const allSets = getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
+): Promise<PromptSet | null> {
+    const allSets = await getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
     const setIndex = allSets.findIndex(s => s.id === id);
 
     if (setIndex === -1) return null;
 
     const set = allSets[setIndex];
-    const currentUser = getCurrentUser();
+    const currentUser = await getCurrentUser();
+    const adminMode = await isAdmin();
 
     // Check permission
-    if (!isAdmin() && currentUser?.id !== set.userId) {
+    if (!adminMode && currentUser?.id !== set.userId) {
         return null;
     }
 
@@ -127,7 +130,7 @@ export function updatePromptSet(
     };
 
     allSets[setIndex] = updatedSet;
-    setCollection(STORAGE_KEYS.PROMPT_SETS, allSets);
+    await setCollection(STORAGE_KEYS.PROMPT_SETS, allSets);
 
     return updatedSet;
 }
@@ -135,21 +138,22 @@ export function updatePromptSet(
 /**
  * Delete a prompt set
  */
-export function deletePromptSet(id: string): boolean {
-    const allSets = getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
+export async function deletePromptSet(id: string): Promise<boolean> {
+    const allSets = await getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
     const set = allSets.find(s => s.id === id);
 
     if (!set) return false;
 
-    const currentUser = getCurrentUser();
+    const currentUser = await getCurrentUser();
+    const adminMode = await isAdmin();
 
     // Check permission
-    if (!isAdmin() && currentUser?.id !== set.userId) {
+    if (!adminMode && currentUser?.id !== set.userId) {
         return false;
     }
 
     const filteredSets = allSets.filter(s => s.id !== id);
-    setCollection(STORAGE_KEYS.PROMPT_SETS, filteredSets);
+    await setCollection(STORAGE_KEYS.PROMPT_SETS, filteredSets);
 
     return true;
 }
@@ -157,17 +161,18 @@ export function deletePromptSet(id: string): boolean {
 /**
  * Add a new version to a prompt set
  */
-export function addVersion(promptSetId: string, promptText: string, notes?: string): PromptVersion | null {
-    const allSets = getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
+export async function addVersion(promptSetId: string, promptText: string, notes?: string): Promise<PromptVersion | null> {
+    const allSets = await getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
     const setIndex = allSets.findIndex(s => s.id === promptSetId);
 
     if (setIndex === -1) return null;
 
     const set = allSets[setIndex];
-    const currentUser = getCurrentUser();
+    const currentUser = await getCurrentUser();
+    const adminMode = await isAdmin();
 
     // Check permission
-    if (!isAdmin() && currentUser?.id !== set.userId) {
+    if (!adminMode && currentUser?.id !== set.userId) {
         return null;
     }
 
@@ -190,7 +195,7 @@ export function addVersion(promptSetId: string, promptText: string, notes?: stri
         updatedAt: now,
     };
 
-    setCollection(STORAGE_KEYS.PROMPT_SETS, allSets);
+    await setCollection(STORAGE_KEYS.PROMPT_SETS, allSets);
 
     return newVersion;
 }
@@ -198,21 +203,22 @@ export function addVersion(promptSetId: string, promptText: string, notes?: stri
 /**
  * Update a version
  */
-export function updateVersion(
+export async function updateVersion(
     promptSetId: string,
     versionId: string,
     updates: Partial<Pick<PromptVersion, 'promptText' | 'notes' | 'imageUrl' | 'imageGeneratedAt'>>
-): PromptVersion | null {
-    const allSets = getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
+): Promise<PromptVersion | null> {
+    const allSets = await getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
     const setIndex = allSets.findIndex(s => s.id === promptSetId);
 
     if (setIndex === -1) return null;
 
     const set = allSets[setIndex];
-    const currentUser = getCurrentUser();
+    const currentUser = await getCurrentUser();
+    const adminMode = await isAdmin();
 
     // Check permission
-    if (!isAdmin() && currentUser?.id !== set.userId) {
+    if (!adminMode && currentUser?.id !== set.userId) {
         return null;
     }
 
@@ -235,7 +241,7 @@ export function updateVersion(
         updatedAt: now,
     };
 
-    setCollection(STORAGE_KEYS.PROMPT_SETS, allSets);
+    await setCollection(STORAGE_KEYS.PROMPT_SETS, allSets);
 
     return updatedVersion;
 }
@@ -243,17 +249,18 @@ export function updateVersion(
 /**
  * Delete a version
  */
-export function deleteVersion(promptSetId: string, versionId: string): boolean {
-    const allSets = getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
+export async function deleteVersion(promptSetId: string, versionId: string): Promise<boolean> {
+    const allSets = await getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
     const setIndex = allSets.findIndex(s => s.id === promptSetId);
 
     if (setIndex === -1) return false;
 
     const set = allSets[setIndex];
-    const currentUser = getCurrentUser();
+    const currentUser = await getCurrentUser();
+    const adminMode = await isAdmin();
 
     // Check permission
-    if (!isAdmin() && currentUser?.id !== set.userId) {
+    if (!adminMode && currentUser?.id !== set.userId) {
         return false;
     }
 
@@ -269,7 +276,7 @@ export function deleteVersion(promptSetId: string, versionId: string): boolean {
         updatedAt: getTimestamp(),
     };
 
-    setCollection(STORAGE_KEYS.PROMPT_SETS, allSets);
+    await setCollection(STORAGE_KEYS.PROMPT_SETS, allSets);
 
     return true;
 }
@@ -277,8 +284,8 @@ export function deleteVersion(promptSetId: string, versionId: string): boolean {
 /**
  * Duplicate a prompt set (used for sharing)
  */
-export function duplicatePromptSet(id: string, newOwnerId: string): PromptSet | null {
-    const allSets = getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
+export async function duplicatePromptSet(id: string, newOwnerId: string): Promise<PromptSet | null> {
+    const allSets = await getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
     const originalSet = allSets.find(s => s.id === id);
 
     if (!originalSet) return null;
@@ -304,7 +311,7 @@ export function duplicatePromptSet(id: string, newOwnerId: string): PromptSet | 
         updatedAt: now,
     };
 
-    setCollection(STORAGE_KEYS.PROMPT_SETS, [...allSets, duplicatedSet]);
+    await setCollection(STORAGE_KEYS.PROMPT_SETS, [...allSets, duplicatedSet]);
 
     return duplicatedSet;
 }
@@ -312,7 +319,7 @@ export function duplicatePromptSet(id: string, newOwnerId: string): PromptSet | 
 /**
  * Get prompt sets by category
  */
-export function getPromptSetsByCategory(categoryId: string): PromptSet[] {
-    const sets = getPromptSets();
+export async function getPromptSetsByCategory(categoryId: string): Promise<PromptSet[]> {
+    const sets = await getPromptSets();
     return sets.filter(s => s.categoryId === categoryId);
 }

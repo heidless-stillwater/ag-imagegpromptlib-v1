@@ -58,10 +58,6 @@ export default function PromptSetCard({
                     <p className={styles.description}>{promptSet.description}</p>
                 )}
 
-                import StarRating from '@/components/ratings/StarRating';
-
-                // ... inside PromptSetCard function ...
-
                 <div className={styles.meta}>
                     <span className={styles.versions}>
                         {promptSet.versions.length} version{promptSet.versions.length !== 1 ? 's' : ''}

@@ -49,53 +49,53 @@ const DEFAULT_USERS: User[] = [
 /**
  * Initialize users if not already present
  */
-export function initializeUsers(): void {
-    const existingUsers = getCollection<User>(STORAGE_KEYS.USERS);
+export async function initializeUsers(): Promise<void> {
+    const existingUsers = await getCollection<User>(STORAGE_KEYS.USERS);
     if (existingUsers.length === 0) {
-        setCollection(STORAGE_KEYS.USERS, DEFAULT_USERS);
+        await setCollection(STORAGE_KEYS.USERS, DEFAULT_USERS);
     }
 }
 
 /**
  * Get all users
  */
-export function getAllUsers(): User[] {
-    initializeUsers();
-    return getCollection<User>(STORAGE_KEYS.USERS);
+export async function getAllUsers(): Promise<User[]> {
+    await initializeUsers();
+    return await getCollection<User>(STORAGE_KEYS.USERS);
 }
 
 /**
  * Get user by ID
  */
-export function getUserById(id: string): User | null {
-    const users = getAllUsers();
+export async function getUserById(id: string): Promise<User | null> {
+    const users = await getAllUsers();
     return users.find(u => u.id === id) || null;
 }
 
 /**
  * Get user by email
  */
-export function getUserByEmail(email: string): User | null {
-    const users = getAllUsers();
+export async function getUserByEmail(email: string): Promise<User | null> {
+    const users = await getAllUsers();
     return users.find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
 }
 
 /**
  * Get current logged-in user
  */
-export function getCurrentUser(): User | null {
-    return getItem<User>(STORAGE_KEYS.CURRENT_USER);
+export async function getCurrentUser(): Promise<User | null> {
+    return await getItem<User>(STORAGE_KEYS.CURRENT_USER);
 }
 
 /**
  * Login as a user (mock authentication)
  */
-export function login(email: string): User | null {
-    initializeUsers();
-    const user = getUserByEmail(email);
+export async function login(email: string): Promise<User | null> {
+    await initializeUsers();
+    const user = await getUserByEmail(email);
 
     if (user) {
-        setItem(STORAGE_KEYS.CURRENT_USER, user);
+        await setItem(STORAGE_KEYS.CURRENT_USER, user);
         return user;
     }
 
@@ -105,13 +105,13 @@ export function login(email: string): User | null {
 /**
  * Login with a specific role (for testing)
  */
-export function loginWithRole(role: 'admin' | 'member'): User {
-    initializeUsers();
-    const users = getAllUsers();
+export async function loginWithRole(role: 'admin' | 'member'): Promise<User> {
+    await initializeUsers();
+    const users = await getAllUsers();
     const user = users.find(u => u.role === role);
 
     if (user) {
-        setItem(STORAGE_KEYS.CURRENT_USER, user);
+        await setItem(STORAGE_KEYS.CURRENT_USER, user);
         return user;
     }
 
@@ -126,8 +126,8 @@ export function loginWithRole(role: 'admin' | 'member'): User {
     };
 
     const updatedUsers = [...users, newUser];
-    setCollection(STORAGE_KEYS.USERS, updatedUsers);
-    setItem(STORAGE_KEYS.CURRENT_USER, newUser);
+    await setCollection(STORAGE_KEYS.USERS, updatedUsers);
+    await setItem(STORAGE_KEYS.CURRENT_USER, newUser);
 
     return newUser;
 }
@@ -135,18 +135,18 @@ export function loginWithRole(role: 'admin' | 'member'): User {
 /**
  * Logout current user
  */
-export function logout(): void {
-    removeItem(STORAGE_KEYS.CURRENT_USER);
+export async function logout(): Promise<void> {
+    await removeItem(STORAGE_KEYS.CURRENT_USER);
 }
 
 /**
  * Switch current user's role (for testing)
  */
-export function switchRole(newRole: 'admin' | 'member'): User | null {
-    const currentUser = getCurrentUser();
+export async function switchRole(newRole: 'admin' | 'member'): Promise<User | null> {
+    const currentUser = await getCurrentUser();
 
     if (!currentUser) {
-        return loginWithRole(newRole);
+        return await loginWithRole(newRole);
     }
 
     const updatedUser: User = {
@@ -155,15 +155,15 @@ export function switchRole(newRole: 'admin' | 'member'): User | null {
     };
 
     // Update in users collection
-    const users = getAllUsers();
+    const users = await getAllUsers();
     const userIndex = users.findIndex(u => u.id === currentUser.id);
 
     if (userIndex !== -1) {
         users[userIndex] = updatedUser;
-        setCollection(STORAGE_KEYS.USERS, users);
+        await setCollection(STORAGE_KEYS.USERS, users);
     }
 
-    setItem(STORAGE_KEYS.CURRENT_USER, updatedUser);
+    await setItem(STORAGE_KEYS.CURRENT_USER, updatedUser);
 
     return updatedUser;
 }
@@ -171,8 +171,8 @@ export function switchRole(newRole: 'admin' | 'member'): User | null {
 /**
  * Register a new user
  */
-export function registerUser(email: string, displayName: string, role: 'admin' | 'member' = 'member'): User | null {
-    const existingUser = getUserByEmail(email);
+export async function registerUser(email: string, displayName: string, role: 'admin' | 'member' = 'member'): Promise<User | null> {
+    const existingUser = await getUserByEmail(email);
 
     if (existingUser) {
         return null; // User already exists
@@ -187,8 +187,8 @@ export function registerUser(email: string, displayName: string, role: 'admin' |
         createdAt: getTimestamp(),
     };
 
-    const users = getAllUsers();
-    setCollection(STORAGE_KEYS.USERS, [...users, newUser]);
+    const users = await getAllUsers();
+    await setCollection(STORAGE_KEYS.USERS, [...users, newUser]);
 
     return newUser;
 }
@@ -196,8 +196,8 @@ export function registerUser(email: string, displayName: string, role: 'admin' |
 /**
  * Update user profile
  */
-export function updateUserProfile(userId: string, updates: Partial<Pick<User, 'displayName' | 'isPublic'>>): User | null {
-    const users = getAllUsers();
+export async function updateUserProfile(userId: string, updates: Partial<Pick<User, 'displayName' | 'isPublic'>>): Promise<User | null> {
+    const users = await getAllUsers();
     const userIndex = users.findIndex(u => u.id === userId);
 
     if (userIndex === -1) {
@@ -210,12 +210,12 @@ export function updateUserProfile(userId: string, updates: Partial<Pick<User, 'd
     };
 
     users[userIndex] = updatedUser;
-    setCollection(STORAGE_KEYS.USERS, users);
+    await setCollection(STORAGE_KEYS.USERS, users);
 
     // Update current user if this is the logged-in user
-    const currentUser = getCurrentUser();
+    const currentUser = await getCurrentUser();
     if (currentUser?.id === userId) {
-        setItem(STORAGE_KEYS.CURRENT_USER, updatedUser);
+        await setItem(STORAGE_KEYS.CURRENT_USER, updatedUser);
     }
 
     return updatedUser;
@@ -224,7 +224,7 @@ export function updateUserProfile(userId: string, updates: Partial<Pick<User, 'd
 /**
  * Check if current user is admin
  */
-export function isAdmin(): boolean {
-    const user = getCurrentUser();
+export async function isAdmin(): Promise<boolean> {
+    const user = await getCurrentUser();
     return user?.role === 'admin';
 }

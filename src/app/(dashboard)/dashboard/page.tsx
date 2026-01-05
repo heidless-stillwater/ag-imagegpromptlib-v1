@@ -29,37 +29,58 @@ export default function DashboardPage() {
     const [newCategoryId, setNewCategoryId] = useState('');
     const [newPrompt, setNewPrompt] = useState('');
 
+    const [isLoading, setIsLoading] = useState(true);
+
     useEffect(() => {
         loadData();
     }, [user]);
 
-    const loadData = () => {
-        setPromptSets(getPromptSets());
-        setCategories(getCategories());
-    };
-
-    const handleCreatePromptSet = () => {
-        if (!newTitle.trim()) return;
-
-        const created = createPromptSet({
-            title: newTitle,
-            description: newDescription,
-            categoryId: newCategoryId || undefined,
-            initialPrompt: newPrompt || undefined,
-        });
-
-        if (created) {
-            loadData();
-            setIsCreateModalOpen(false);
-            resetForm();
-            router.push(`/prompts/${created.id}`);
+    const loadData = async () => {
+        setIsLoading(true);
+        try {
+            const [sets, cats] = await Promise.all([
+                getPromptSets(),
+                getCategories()
+            ]);
+            setPromptSets(sets);
+            setCategories(cats);
+        } catch (error) {
+            console.error('Failed to load data:', error);
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const handleDelete = (id: string) => {
+    const handleCreatePromptSet = async () => {
+        if (!newTitle.trim()) return;
+
+        try {
+            const created = await createPromptSet({
+                title: newTitle,
+                description: newDescription,
+                categoryId: newCategoryId || undefined,
+                initialPrompt: newPrompt || undefined,
+            });
+
+            if (created) {
+                await loadData();
+                setIsCreateModalOpen(false);
+                resetForm();
+                router.push(`/prompts/${created.id}`);
+            }
+        } catch (error) {
+            console.error('Failed to create prompt set:', error);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
         if (confirm('Are you sure you want to delete this prompt set?')) {
-            deletePromptSet(id);
-            loadData();
+            try {
+                await deletePromptSet(id);
+                await loadData();
+            } catch (error) {
+                console.error('Failed to delete prompt set:', error);
+            }
         }
     };
 
@@ -123,7 +144,12 @@ export default function DashboardPage() {
                 </select>
             </div>
 
-            {filteredSets.length === 0 ? (
+            {isLoading ? (
+                <div className={styles.loading}>
+                    <div className={styles.spinner} />
+                    <p>Loading your prompts...</p>
+                </div>
+            ) : filteredSets.length === 0 ? (
                 <div className={styles.empty}>
                     <span className={styles.emptyIcon}>📝</span>
                     <h3>No prompt sets yet</h3>

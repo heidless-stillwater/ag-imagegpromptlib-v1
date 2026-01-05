@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { User } from '@/types';
+import { useState, useEffect } from 'react';
+import { User, PromptSet } from '@/types';
 import { searchUsers, getPublicDirectory, resolveInviteLink, createInviteLink, getInviteUrl } from '@/services/users';
 import { createShare } from '@/services/shares';
 import { getPromptSetById } from '@/services/promptSets';
@@ -18,6 +18,7 @@ type TabType = 'search' | 'directory' | 'invite';
 
 export default function ShareModal({ promptSetId, onClose }: ShareModalProps) {
     const [activeTab, setActiveTab] = useState<TabType>('search');
+    const [promptSet, setPromptSet] = useState<PromptSet | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<User[]>([]);
     const [directoryUsers, setDirectoryUsers] = useState<User[]>([]);
@@ -26,26 +27,36 @@ export default function ShareModal({ promptSetId, onClose }: ShareModalProps) {
     const [myInviteLink, setMyInviteLink] = useState('');
     const [isSharing, setIsSharing] = useState(false);
     const [shareSuccess, setShareSuccess] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const promptSet = getPromptSetById(promptSetId);
+    useEffect(() => {
+        const fetchPromptSet = async () => {
+            const set = await getPromptSetById(promptSetId);
+            setPromptSet(set);
+            setIsLoading(false);
+        };
+        fetchPromptSet();
+    }, [promptSetId]);
 
-    const handleSearch = () => {
+    const handleSearch = async () => {
         if (searchQuery.trim()) {
-            setSearchResults(searchUsers(searchQuery));
+            const results = await searchUsers(searchQuery);
+            setSearchResults(results);
         }
     };
 
-    const loadDirectory = () => {
-        setDirectoryUsers(getPublicDirectory());
+    const loadDirectory = async () => {
+        const users = await getPublicDirectory();
+        setDirectoryUsers(users);
     };
 
-    const handleResolveInvite = () => {
-        const user = resolveInviteLink(inviteCode);
+    const handleResolveInvite = async () => {
+        const user = await resolveInviteLink(inviteCode);
         setInviteUser(user);
     };
 
-    const handleCreateInviteLink = () => {
-        const link = createInviteLink(7); // 7 days expiry
+    const handleCreateInviteLink = async () => {
+        const link = await createInviteLink(7); // 7 days expiry
         if (link) {
             setMyInviteLink(getInviteUrl(link.code));
         }
@@ -53,14 +64,18 @@ export default function ShareModal({ promptSetId, onClose }: ShareModalProps) {
 
     const handleShare = async (recipientId: string) => {
         setIsSharing(true);
-        const share = createShare(promptSetId, recipientId);
-        setIsSharing(false);
-
-        if (share) {
-            setShareSuccess(true);
-            setTimeout(() => {
-                onClose();
-            }, 1500);
+        try {
+            const share = await createShare(promptSetId, recipientId);
+            if (share) {
+                setShareSuccess(true);
+                setTimeout(() => {
+                    onClose();
+                }, 1500);
+            }
+        } catch (error) {
+            console.error('Failed to share prompt set:', error);
+        } finally {
+            setIsSharing(false);
         }
     };
 

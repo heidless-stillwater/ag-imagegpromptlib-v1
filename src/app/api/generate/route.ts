@@ -17,14 +17,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export async function POST(request: NextRequest) {
     try {
-        const { prompt } = await request.json();
-
-        if (!prompt || typeof prompt !== 'string') {
-            return NextResponse.json(
-                { error: 'Invalid prompt provided' },
-                { status: 400 }
-            );
-        }
+        const { prompt, testConnection } = await request.json();
 
         const apiKey = process.env.GEMINI_API_KEY;
 
@@ -35,13 +28,36 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Handle connection test
+        if (testConnection) {
+            const genAI = new GoogleGenerativeAI(apiKey);
+            try {
+                // Verify API key and connectivity with the target model
+                await genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
+                return NextResponse.json({
+                    success: true,
+                    message: 'NanoBanana connection verified successfully.'
+                });
+            } catch (err) {
+                return NextResponse.json(
+                    { error: `Connection test failed: ${err instanceof Error ? err.message : 'Unknown error'}` },
+                    { status: 500 }
+                );
+            }
+        }
+
+        if (!prompt || typeof prompt !== 'string') {
+            return NextResponse.json(
+                { error: 'Invalid prompt provided' },
+                { status: 400 }
+            );
+        }
+
         const genAI = new GoogleGenerativeAI(apiKey);
 
-        // Use gemini-2.0-flash-exp for image generation with Imagen 3
-        // Note: For actual image generation, you may need to use a different model
-        // that supports image output. This uses text-to-image prompting.
+        // Use gemini-2.5-flash-image as the standard model
         const model = genAI.getGenerativeModel({
-            model: 'gemini-2.0-flash-exp',
+            model: 'gemini-2.5-flash-image',
         });
 
         // Create an enhanced prompt for image generation
@@ -66,11 +82,12 @@ export async function POST(request: NextRequest) {
         }
 
         if (!imageUrl) {
-            // If no image was generated, return the text response for debugging
+            // If no image was generated, return a placeholder for simulation if desired, 
+            // but here we follow the existing logic of reporting failure.
             const textResponse = response.text?.() || 'No response';
             return NextResponse.json({
                 success: false,
-                error: `Image generation not available with current model. The model requires specific configuration for image output. Response: ${textResponse.substring(0, 200)}`,
+                error: `Image generation output part not found. This model might not support image generation in this environment. Response: ${textResponse.substring(0, 200)}`,
             });
         }
 

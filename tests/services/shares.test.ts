@@ -72,11 +72,11 @@ describe('Shares Service', () => {
     });
 
     describe('createShare', () => {
-        it('should create a share offer', () => {
-            login(sender.email);
-            const promptSet = createPromptSet({ title: 'Shared Set' });
+        it('should create a share offer', async () => {
+            await login(sender.email);
+            const promptSet = await createPromptSet({ title: 'Shared Set' });
 
-            const share = createShare(promptSet!.id, recipient.id);
+            const share = await createShare(promptSet!.id, recipient.id);
 
             expect(share).not.toBeNull();
             expect(share?.senderId).toBe(sender.id);
@@ -85,99 +85,99 @@ describe('Shares Service', () => {
             expect(share?.promptSetSnapshot.title).toBe('Shared Set');
         });
 
-        it('should create notification for recipient', () => {
-            login(sender.email);
-            const promptSet = createPromptSet({ title: 'Shared Set' });
-            createShare(promptSet!.id, recipient.id);
+        it('should create notification for recipient', async () => {
+            await login(sender.email);
+            const promptSet = await createPromptSet({ title: 'Shared Set' });
+            await createShare(promptSet!.id, recipient.id);
 
-            logout();
-            login(recipient.email);
+            await logout();
+            await login(recipient.email);
 
-            const notifications = getNotifications();
+            const notifications = await getNotifications();
 
             expect(notifications).toHaveLength(1);
             expect(notifications[0].type).toBe('share_received');
             expect(notifications[0].message).toContain('Shared Set');
         });
 
-        it('should not allow sharing to yourself', () => {
-            login(sender.email);
-            const promptSet = createPromptSet({ title: 'Test Set' });
+        it('should not allow sharing to yourself', async () => {
+            await login(sender.email);
+            const promptSet = await createPromptSet({ title: 'Test Set' });
 
-            const share = createShare(promptSet!.id, sender.id);
-
-            expect(share).toBeNull();
-        });
-
-        it('should not allow sharing others prompt sets', () => {
-            login(sender.email);
-            const promptSet = createPromptSet({ title: 'Sender Set' });
-            logout();
-
-            login(thirdUser.email);
-            const share = createShare(promptSet!.id, recipient.id);
+            const share = await createShare(promptSet!.id, sender.id);
 
             expect(share).toBeNull();
         });
 
-        it('should not allow sharing to non-existent user', () => {
-            login(sender.email);
-            const promptSet = createPromptSet({ title: 'Test Set' });
+        it('should not allow sharing others prompt sets', async () => {
+            await login(sender.email);
+            const promptSet = await createPromptSet({ title: 'Sender Set' });
+            await logout();
 
-            const share = createShare(promptSet!.id, 'fake-user-id');
+            await login(thirdUser.email);
+            const share = await createShare(promptSet!.id, recipient.id);
+
+            expect(share).toBeNull();
+        });
+
+        it('should not allow sharing to non-existent user', async () => {
+            await login(sender.email);
+            const promptSet = await createPromptSet({ title: 'Test Set' });
+
+            const share = await createShare(promptSet!.id, 'fake-user-id');
 
             expect(share).toBeNull();
         });
     });
 
     describe('getIncomingShares', () => {
-        beforeEach(() => {
-            login(sender.email);
-            const set1 = createPromptSet({ title: 'Set 1' });
-            const set2 = createPromptSet({ title: 'Set 2' });
-            createShare(set1!.id, recipient.id);
-            createShare(set2!.id, recipient.id);
-            logout();
+        beforeEach(async () => {
+            await login(sender.email);
+            const set1 = await createPromptSet({ title: 'Set 1' });
+            const set2 = await createPromptSet({ title: 'Set 2' });
+            await createShare(set1!.id, recipient.id);
+            await createShare(set2!.id, recipient.id);
+            await logout();
         });
 
-        it('should return incoming shares for recipient', () => {
-            login(recipient.email);
+        it('should return incoming shares for recipient', async () => {
+            await login(recipient.email);
 
-            const shares = getIncomingShares();
+            const shares = await getIncomingShares();
 
             expect(shares).toHaveLength(2);
             expect(shares.every(s => s.recipientId === recipient.id)).toBe(true);
         });
 
-        it('should filter by state', () => {
-            login(recipient.email);
-            const shares = getIncomingShares();
-            acceptShare(shares[0].id);
+        it('should filter by state', async () => {
+            await login(recipient.email);
+            const shares = await getIncomingShares();
+            await acceptShare(shares[0].id);
 
-            const pending = getIncomingShares('inTransit');
-            const accepted = getIncomingShares('accepted');
+            const pending = await getIncomingShares('inTransit');
+            const accepted = await getIncomingShares('accepted');
 
             expect(pending).toHaveLength(1);
             expect(accepted).toHaveLength(1);
         });
 
-        it('should return empty for user with no shares', () => {
-            login(thirdUser.email);
+        it('should return empty for user with no shares', async () => {
+            await login(thirdUser.email);
 
-            const shares = getIncomingShares();
+            const shares = await getIncomingShares();
 
             expect(shares).toHaveLength(0);
         });
     });
 
     describe('getOutgoingShares', () => {
-        it('should return outgoing shares for sender', () => {
-            login(sender.email);
-            const set = createPromptSet({ title: 'My Set' });
-            createShare(set!.id, recipient.id);
-            createShare(set!.id, thirdUser.id);
+        it('should return outgoing shares for sender', async () => {
+            await login(sender.email);
+            const set = await createPromptSet({ title: 'My Set' });
+            await createShare(set!.id, recipient.id);
+            await createShare(set!.id, thirdUser.id);
 
-            const shares = getOutgoingShares();
+            const shares = await getOutgoingShares();
 
             expect(shares).toHaveLength(2);
             expect(shares.every(s => s.senderId === sender.id)).toBe(true);
@@ -187,21 +187,21 @@ describe('Shares Service', () => {
     describe('acceptShare', () => {
         let shareId: string;
 
-        beforeEach(() => {
-            login(sender.email);
-            const set = createPromptSet({
+        beforeEach(async () => {
+            await login(sender.email);
+            const set = await createPromptSet({
                 title: 'To Share',
                 initialPrompt: 'Original prompt'
             });
-            const share = createShare(set!.id, recipient.id);
+            const share = await createShare(set!.id, recipient.id);
             shareId = share!.id;
-            logout();
+            await logout();
         });
 
-        it('should create a copy of prompt set for recipient', () => {
-            login(recipient.email);
+        it('should create a copy of prompt set for recipient', async () => {
+            await login(recipient.email);
 
-            const newSet = acceptShare(shareId);
+            const newSet = await acceptShare(shareId);
 
             expect(newSet).not.toBeNull();
             expect(newSet?.userId).toBe(recipient.id);
@@ -209,40 +209,40 @@ describe('Shares Service', () => {
             expect(newSet?.versions).toHaveLength(1);
         });
 
-        it('should update share state to accepted', () => {
-            login(recipient.email);
-            acceptShare(shareId);
+        it('should update share state to accepted', async () => {
+            await login(recipient.email);
+            await acceptShare(shareId);
 
-            const share = getShareById(shareId);
+            const share = await getShareById(shareId);
 
             expect(share?.state).toBe('accepted');
             expect(share?.respondedAt).toBeDefined();
         });
 
-        it('should notify sender of acceptance', () => {
-            login(recipient.email);
-            acceptShare(shareId);
-            logout();
+        it('should notify sender of acceptance', async () => {
+            await login(recipient.email);
+            await acceptShare(shareId);
+            await logout();
 
-            login(sender.email);
-            const notifications = getNotifications();
+            await login(sender.email);
+            const notifications = await getNotifications();
 
             expect(notifications.some(n => n.type === 'share_accepted')).toBe(true);
         });
 
-        it('should not allow accepting twice', () => {
-            login(recipient.email);
-            acceptShare(shareId);
+        it('should not allow accepting twice', async () => {
+            await login(recipient.email);
+            await acceptShare(shareId);
 
-            const secondAttempt = acceptShare(shareId);
+            const secondAttempt = await acceptShare(shareId);
 
             expect(secondAttempt).toBeNull();
         });
 
-        it('should not allow non-recipient to accept', () => {
-            login(thirdUser.email);
+        it('should not allow non-recipient to accept', async () => {
+            await login(thirdUser.email);
 
-            const result = acceptShare(shareId);
+            const result = await acceptShare(shareId);
 
             expect(result).toBeNull();
         });
@@ -251,79 +251,79 @@ describe('Shares Service', () => {
     describe('rejectShare', () => {
         let shareId: string;
 
-        beforeEach(() => {
-            login(sender.email);
-            const set = createPromptSet({ title: 'To Reject' });
-            const share = createShare(set!.id, recipient.id);
+        beforeEach(async () => {
+            await login(sender.email);
+            const set = await createPromptSet({ title: 'To Reject' });
+            const share = await createShare(set!.id, recipient.id);
             shareId = share!.id;
-            logout();
+            await logout();
         });
 
-        it('should update share state to rejected', () => {
-            login(recipient.email);
+        it('should update share state to rejected', async () => {
+            await login(recipient.email);
 
-            const result = rejectShare(shareId);
-            const share = getShareById(shareId);
+            const result = await rejectShare(shareId);
+            const share = await getShareById(shareId);
 
             expect(result).toBe(true);
             expect(share?.state).toBe('rejected');
         });
 
-        it('should notify sender of rejection', () => {
-            login(recipient.email);
-            rejectShare(shareId);
-            logout();
+        it('should notify sender of rejection', async () => {
+            await login(recipient.email);
+            await rejectShare(shareId);
+            await logout();
 
-            login(sender.email);
-            const notifications = getNotifications();
+            await login(sender.email);
+            const notifications = await getNotifications();
 
             expect(notifications.some(n => n.type === 'share_rejected')).toBe(true);
         });
 
-        it('should not allow rejecting twice', () => {
-            login(recipient.email);
-            rejectShare(shareId);
+        it('should not allow rejecting twice', async () => {
+            await login(recipient.email);
+            await rejectShare(shareId);
 
-            const secondAttempt = rejectShare(shareId);
+            const secondAttempt = await rejectShare(shareId);
 
             expect(secondAttempt).toBe(false);
         });
     });
 
     describe('Notifications', () => {
-        beforeEach(() => {
+        beforeEach(async () => {
             // Create some shares which generate notifications
-            login(sender.email);
-            const set1 = createPromptSet({ title: 'Set 1' });
-            const set2 = createPromptSet({ title: 'Set 2' });
-            createShare(set1!.id, recipient.id);
-            createShare(set2!.id, recipient.id);
-            logout();
+            await login(sender.email);
+            const set1 = await createPromptSet({ title: 'Set 1' });
+            const set2 = await createPromptSet({ title: 'Set 2' });
+            await createShare(set1!.id, recipient.id);
+            await createShare(set2!.id, recipient.id);
+            await logout();
         });
 
         describe('getNotifications', () => {
-            it('should return all notifications for user', () => {
-                login(recipient.email);
+            it('should return all notifications for user', async () => {
+                await login(recipient.email);
 
-                const notifications = getNotifications();
+                const notifications = await getNotifications();
 
                 expect(notifications).toHaveLength(2);
             });
 
-            it('should filter unread only', () => {
-                login(recipient.email);
-                const notifications = getNotifications();
-                markNotificationRead(notifications[0].id);
+            it('should filter unread only', async () => {
+                await login(recipient.email);
+                const notifications = await getNotifications();
+                await markNotificationRead(notifications[0].id);
 
-                const unread = getNotifications(true);
+                const unread = await getNotifications(true);
 
                 expect(unread).toHaveLength(1);
             });
 
-            it('should be sorted by createdAt descending', () => {
-                login(recipient.email);
+            it('should be sorted by createdAt descending', async () => {
+                await login(recipient.email);
 
-                const notifications = getNotifications();
+                const notifications = await getNotifications();
 
                 const dates = notifications.map(n => new Date(n.createdAt).getTime());
                 expect(dates[0]).toBeGreaterThanOrEqual(dates[1]);
@@ -331,47 +331,47 @@ describe('Shares Service', () => {
         });
 
         describe('markNotificationRead', () => {
-            it('should mark notification as read', () => {
-                login(recipient.email);
-                const notifications = getNotifications();
+            it('should mark notification as read', async () => {
+                await login(recipient.email);
+                const notifications = await getNotifications();
 
-                const result = markNotificationRead(notifications[0].id);
+                const result = await markNotificationRead(notifications[0].id);
 
                 expect(result).toBe(true);
-                const updated = getNotifications();
+                const updated = await getNotifications();
                 expect(updated.find(n => n.id === notifications[0].id)?.read).toBe(true);
             });
 
-            it('should return false for non-existent notification', () => {
-                login(recipient.email);
+            it('should return false for non-existent notification', async () => {
+                await login(recipient.email);
 
-                const result = markNotificationRead('fake-id');
+                const result = await markNotificationRead('fake-id');
 
                 expect(result).toBe(false);
             });
         });
 
         describe('markAllNotificationsRead', () => {
-            it('should mark all notifications as read', () => {
-                login(recipient.email);
+            it('should mark all notifications as read', async () => {
+                await login(recipient.email);
 
-                markAllNotificationsRead();
+                await markAllNotificationsRead();
 
-                const unread = getNotifications(true);
+                const unread = await getNotifications(true);
                 expect(unread).toHaveLength(0);
             });
         });
 
         describe('getUnreadNotificationCount', () => {
-            it('should return correct count', () => {
-                login(recipient.email);
+            it('should return correct count', async () => {
+                await login(recipient.email);
 
-                expect(getUnreadNotificationCount()).toBe(2);
+                expect(await getUnreadNotificationCount()).toBe(2);
 
-                const notifications = getNotifications();
-                markNotificationRead(notifications[0].id);
+                const notifications = await getNotifications();
+                await markNotificationRead(notifications[0].id);
 
-                expect(getUnreadNotificationCount()).toBe(1);
+                expect(await getUnreadNotificationCount()).toBe(1);
             });
         });
     });

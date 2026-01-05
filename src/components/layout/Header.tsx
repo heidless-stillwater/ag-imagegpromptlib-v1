@@ -28,6 +28,9 @@ export default function Header() {
                         <Link href="/dashboard" className={styles.navLink} onClick={() => setIsMenuOpen(false)}>
                             Dashboard
                         </Link>
+                        <Link href="/media" className={styles.navLink} onClick={() => setIsMenuOpen(false)}>
+                            Media
+                        </Link>
                         <Link href="/shares" className={styles.navLink} onClick={() => setIsMenuOpen(false)}>
                             Shares
                             {unreadCount > 0 && (

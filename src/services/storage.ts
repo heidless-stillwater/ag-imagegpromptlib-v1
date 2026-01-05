@@ -11,6 +11,7 @@ export const STORAGE_KEYS = {
     NOTIFICATIONS: 'img_prompt_mgr_notifications',
     GENERATION_CACHE: 'img_prompt_mgr_generation_cache',
     INVITE_LINKS: 'img_prompt_mgr_invite_links',
+    MEDIA: 'img_prompt_mgr_media',
 } as const;
 
 // Check if we're in a browser environment

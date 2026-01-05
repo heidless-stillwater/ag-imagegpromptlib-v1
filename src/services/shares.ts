@@ -202,6 +202,30 @@ export async function rejectShare(shareId: string): Promise<boolean> {
 }
 
 /**
+ * Remove a share from the queue
+ */
+export async function removeShare(shareId: string): Promise<boolean> {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) return false;
+
+    const shares = await getCollection<Share>(STORAGE_KEYS.SHARES);
+    const shareIndex = shares.findIndex(s => s.id === shareId);
+
+    if (shareIndex === -1) return false;
+
+    const share = shares[shareIndex];
+
+    // Authorization: User must be sender or recipient
+    if (share.senderId !== currentUser.id && share.recipientId !== currentUser.id) {
+        return false;
+    }
+
+    const filtered = shares.filter(s => s.id !== shareId);
+    await setCollection(STORAGE_KEYS.SHARES, filtered);
+    return true;
+}
+
+/**
  * Create a notification
  */
 async function createNotification(

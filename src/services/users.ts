@@ -11,13 +11,13 @@ import { getAllUsers, getCurrentUser, getUserById } from './auth';
 /**
  * Search users by email or display name
  */
-export function searchUsers(query: string): User[] {
+export async function searchUsers(query: string): Promise<User[]> {
     if (!query.trim()) return [];
 
-    const currentUser = getCurrentUser();
+    const currentUser = await getCurrentUser();
     if (!currentUser) return [];
 
-    const allUsers = getAllUsers();
+    const allUsers = await getAllUsers();
     const lowerQuery = query.toLowerCase();
 
     return allUsers.filter(user =>
@@ -31,9 +31,9 @@ export function searchUsers(query: string): User[] {
 /**
  * Get public user directory
  */
-export function getPublicDirectory(): User[] {
-    const currentUser = getCurrentUser();
-    const allUsers = getAllUsers();
+export async function getPublicDirectory(): Promise<User[]> {
+    const currentUser = await getCurrentUser();
+    const allUsers = await getAllUsers();
 
     return allUsers.filter(user =>
         user.isPublic &&
@@ -56,8 +56,8 @@ function generateInviteCode(): string {
 /**
  * Create an invite link
  */
-export function createInviteLink(expiresInDays?: number): InviteLink | null {
-    const currentUser = getCurrentUser();
+export async function createInviteLink(expiresInDays?: number): Promise<InviteLink | null> {
+    const currentUser = await getCurrentUser();
     if (!currentUser) return null;
 
     const now = new Date();
@@ -77,8 +77,8 @@ export function createInviteLink(expiresInDays?: number): InviteLink | null {
         createdAt: now.toISOString(),
     };
 
-    const links = getCollection<InviteLink>(STORAGE_KEYS.INVITE_LINKS);
-    setCollection(STORAGE_KEYS.INVITE_LINKS, [...links, inviteLink]);
+    const links = await getCollection<InviteLink>(STORAGE_KEYS.INVITE_LINKS);
+    await setCollection(STORAGE_KEYS.INVITE_LINKS, [...links, inviteLink]);
 
     return inviteLink;
 }
@@ -86,8 +86,8 @@ export function createInviteLink(expiresInDays?: number): InviteLink | null {
 /**
  * Resolve an invite code to a user
  */
-export function resolveInviteLink(code: string): User | null {
-    const links = getCollection<InviteLink>(STORAGE_KEYS.INVITE_LINKS);
+export async function resolveInviteLink(code: string): Promise<User | null> {
+    const links = await getCollection<InviteLink>(STORAGE_KEYS.INVITE_LINKS);
     const link = links.find(l => l.code.toUpperCase() === code.toUpperCase());
 
     if (!link) return null;
@@ -100,28 +100,28 @@ export function resolveInviteLink(code: string): User | null {
         }
     }
 
-    return getUserById(link.creatorId);
+    return await getUserById(link.creatorId);
 }
 
 /**
  * Get invite links created by current user
  */
-export function getMyInviteLinks(): InviteLink[] {
-    const currentUser = getCurrentUser();
+export async function getMyInviteLinks(): Promise<InviteLink[]> {
+    const currentUser = await getCurrentUser();
     if (!currentUser) return [];
 
-    const links = getCollection<InviteLink>(STORAGE_KEYS.INVITE_LINKS);
+    const links = await getCollection<InviteLink>(STORAGE_KEYS.INVITE_LINKS);
     return links.filter(l => l.creatorId === currentUser.id);
 }
 
 /**
  * Delete an invite link
  */
-export function deleteInviteLink(id: string): boolean {
-    const currentUser = getCurrentUser();
+export async function deleteInviteLink(id: string): Promise<boolean> {
+    const currentUser = await getCurrentUser();
     if (!currentUser) return false;
 
-    const links = getCollection<InviteLink>(STORAGE_KEYS.INVITE_LINKS);
+    const links = await getCollection<InviteLink>(STORAGE_KEYS.INVITE_LINKS);
     const link = links.find(l => l.id === id);
 
     if (!link || link.creatorId !== currentUser.id) {
@@ -129,7 +129,7 @@ export function deleteInviteLink(id: string): boolean {
     }
 
     const filtered = links.filter(l => l.id !== id);
-    setCollection(STORAGE_KEYS.INVITE_LINKS, filtered);
+    await setCollection(STORAGE_KEYS.INVITE_LINKS, filtered);
 
     return true;
 }

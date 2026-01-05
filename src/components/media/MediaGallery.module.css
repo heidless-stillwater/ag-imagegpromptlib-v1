@@ -1,0 +1,161 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    background: var(--color-bg-glass);
+    backdrop-filter: var(--blur-md);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border-glass);
+}
+
+.selectionInfo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--space-4);
+}
+
+.card {
+    background: var(--color-bg-glass);
+    backdrop-filter: var(--blur-md);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border-glass);
+    overflow: hidden;
+    transition: all var(--transition-base);
+    cursor: pointer;
+    position: relative;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    border-color: var(--color-primary-soft);
+    box-shadow: var(--shadow-lg);
+}
+
+.card.selected {
+    border-color: var(--color-primary);
+    background: rgba(var(--color-primary-rgb), 0.1);
+}
+
+.imageWrapper {
+    aspect-ratio: 1;
+    overflow: hidden;
+    position: relative;
+    background: #000;
+}
+
+.image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--transition-base);
+}
+
+.card:hover .image {
+    transform: scale(1.05);
+}
+
+.deleteBtn {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    background: rgba(255, 0, 0, 0.7);
+    color: white;
+    border: none;
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-base);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.card:hover .deleteBtn {
+    opacity: 1;
+}
+
+.deleteBtn:hover {
+    background: rgba(255, 0, 0, 0.9);
+}
+
+.checkbox {
+    position: absolute;
+    top: var(--space-2);
+    left: var(--space-2);
+    width: 24px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    z-index: 2;
+}
+
+.selected .checkbox {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.meta {
+    padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.date {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+}
+
+.userBadge {
+    font-size: 10px;
+    color: var(--color-primary-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.empty {
+    padding: var(--space-12);
+    text-align: center;
+    background: var(--color-bg-glass);
+    backdrop-filter: var(--blur-md);
+    border: 1px dashed var(--color-border-glass);
+    border-radius: var(--radius-xl);
+}
+
+.emptyIcon {
+    font-size: 48px;
+    margin-bottom: var(--space-4);
+    display: block;
+}
+
+.empty h3 {
+    font-size: var(--text-xl);
+    margin-bottom: var(--space-2);
+}
+
+.empty p {
+    color: var(--color-text-muted);
+}

@@ -7,6 +7,7 @@ import {
     getTimestamp
 } from './storage';
 import { getCurrentUser, isAdmin } from './auth';
+import { addMediaImage } from './media';
 
 /**
  * Get all prompt sets (admin sees all, members see their own)
@@ -234,6 +235,14 @@ export async function updateVersion(
 
     const updatedVersions = [...set.versions];
     updatedVersions[versionIndex] = updatedVersion;
+
+    // If a new image is added, also save a separate copy to Media Library
+    if (updates.imageUrl) {
+        await addMediaImage(updates.imageUrl, {
+            promptSetId,
+            versionId,
+        });
+    }
 
     allSets[setIndex] = {
         ...set,

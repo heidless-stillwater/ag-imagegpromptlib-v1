@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Share, User } from '@/types';
-import { getIncomingShares, getOutgoingShares, acceptShare, rejectShare } from '@/services/shares';
+import { getIncomingShares, getOutgoingShares, acceptShare, rejectShare, removeShare } from '@/services/shares';
 import { getUserById, getAllUsers } from '@/services/auth';
 import { useNotifications } from '@/hooks/useNotifications';
 import Button from '@/components/ui/Button';
@@ -57,6 +57,18 @@ export default function SharesPage() {
                 refreshNotifications();
             } catch (error) {
                 console.error('Failed to reject share:', error);
+            }
+        }
+    };
+
+    const handleRemove = async (shareId: string) => {
+        if (confirm('Are you sure you want to remove this share from your queue?')) {
+            try {
+                await removeShare(shareId);
+                await loadShares();
+                refreshNotifications();
+            } catch (error) {
+                console.error('Failed to remove share:', error);
             }
         }
     };
@@ -118,6 +130,14 @@ export default function SharesPage() {
                             </Button>
                             <Button size="sm" variant="danger" onClick={() => handleReject(share.id)}>
                                 Reject
+                            </Button>
+                        </div>
+                    )}
+
+                    {(share.state !== 'inTransit' || type === 'outgoing') && (
+                        <div className={styles.actionButtons}>
+                            <Button size="sm" variant="secondary" onClick={() => handleRemove(share.id)}>
+                                {type === 'outgoing' && share.state === 'inTransit' ? 'Cancel' : 'Remove'}
                             </Button>
                         </div>
                     )}

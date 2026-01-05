@@ -87,6 +87,16 @@ export interface Notification {
     createdAt: string;
 }
 
+// Media types
+export interface MediaImage {
+    id: string;
+    userId: string;
+    url: string; // Base64 or external URL
+    promptSetId?: string; // Reference to original prompt set if applicable
+    versionId?: string; // Reference to original version if applicable
+    createdAt: string;
+}
+
 // Generation cache types
 export interface GenerationCache {
     promptHash: string;

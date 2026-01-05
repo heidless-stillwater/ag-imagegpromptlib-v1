@@ -102,11 +102,11 @@ export default function BackupPage() {
     const confirmRestoreAction = async () => {
         const backup = confirmRestore.backup;
         if (!backup) return;
-        setConfirmRestore({ isOpen: false });
 
         setProcessingAction(`restore-${backup.id}`);
         try {
             const result = await restoreBackup(backup.file);
+            setConfirmRestore({ isOpen: false }); // Close only on success
             setFeedback({
                 isOpen: true,
                 title: 'Restore Complete',
@@ -115,6 +115,7 @@ export default function BackupPage() {
             });
         } catch (error) {
             console.error('Restore failed:', error);
+            setConfirmRestore({ isOpen: false }); // Close on error too, but show error feedback
             setFeedback({
                 isOpen: true,
                 title: 'Restore Failed',
@@ -140,11 +141,12 @@ export default function BackupPage() {
 
     const confirmUploadAction = async () => {
         const content = confirmUpload.content;
-        setConfirmUpload({ isOpen: false, content: '' });
+        if (!content) return;
 
         setProcessingAction('upload');
         try {
             const result = await restoreBackup(content);
+            setConfirmUpload({ isOpen: false, content: '' });
             setFeedback({
                 isOpen: true,
                 title: 'Restore Complete',
@@ -153,6 +155,7 @@ export default function BackupPage() {
             });
         } catch (error) {
             console.error('Restore failed:', error);
+            setConfirmUpload({ isOpen: false, content: '' });
             setFeedback({
                 isOpen: true,
                 title: 'Restore Failed',
@@ -244,6 +247,7 @@ export default function BackupPage() {
                         onDelete={handleDelete}
                         onRestore={handleRestore}
                         isAdminView={isAdmin}
+                        processingAction={processingAction}
                     />
                 )}
             </div>

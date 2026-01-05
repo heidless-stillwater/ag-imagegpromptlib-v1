@@ -11,9 +11,10 @@ interface BackupListProps {
     onDelete: (id: string) => Promise<void> | void;
     onRestore: (backup: Backup) => Promise<void> | void;
     isAdminView?: boolean;
+    processingAction?: string | null;
 }
 
-export default function BackupList({ backups, onDelete, onRestore, isAdminView = false }: BackupListProps) {
+export default function BackupList({ backups, onDelete, onRestore, isAdminView = false, processingAction = null }: BackupListProps) {
     if (backups.length === 0) {
         return (
             <div className={styles.empty}>
@@ -44,6 +45,7 @@ export default function BackupList({ backups, onDelete, onRestore, isAdminView =
                             onDelete={onDelete}
                             onRestore={onRestore}
                             isAdminView={isAdminView}
+                            processingAction={processingAction}
                         />
                     ))}
                 </tbody>
@@ -57,21 +59,34 @@ interface BackupRowProps {
     onDelete: (id: string) => Promise<void> | void;
     onRestore: (backup: Backup) => Promise<void> | void;
     isAdminView: boolean;
+    processingAction: string | null;
 }
 
-function BackupRow({ backup, onDelete, onRestore, isAdminView }: BackupRowProps) {
-    const [loadingAction, setLoadingAction] = useState<string | null>(null);
+function BackupRow({ backup, onDelete, onRestore, isAdminView, processingAction }: BackupRowProps) {
+    const [loadingLocal, setLoadingLocal] = useState<string | null>(null);
+
+    // Row is "loading" if either a local action is running OR a page-level action for THIS row is running
+    const isRowProcessing = (action: string) => {
+        const actionKey = `${backup.id}-${action}`;
+        return loadingLocal === action || processingAction === `restore-${backup.id}` && action === 'restore' || processingAction === `delete-${backup.id}` && action === 'delete';
+    };
 
     const handleAction = async (action: string, callback: () => Promise<void> | void) => {
-        setLoadingAction(action);
-        try {
+        // If it's a "confirmable" action like restore or delete, we don't set local loading here
+        // because the modal handles the duration. We only set local loading for direct actions like download.
+        if (action === 'download') {
+            setLoadingLocal(action);
+            try {
+                await callback();
+            } finally {
+                setLoadingLocal(null);
+            }
+        } else {
             await callback();
-        } catch (error) {
-            console.error(`Error during ${action}:`, error);
-        } finally {
-            setLoadingAction(null);
         }
     };
+
+    const anyProcessing = !!loadingLocal || processingAction === `restore-${backup.id}` || processingAction === `delete-${backup.id}` || (processingAction && !processingAction.includes(backup.id));
 
     return (
         <tr className={styles.row}>
@@ -88,8 +103,8 @@ function BackupRow({ backup, onDelete, onRestore, isAdminView }: BackupRowProps)
                     size="sm"
                     variant="secondary"
                     onClick={() => handleAction('download', () => downloadBackupFile(backup))}
-                    isLoading={loadingAction === 'download'}
-                    disabled={!!loadingAction}
+                    isLoading={isRowProcessing('download')}
+                    disabled={!!processingAction || !!loadingLocal}
                 >
                     Download
                 </Button>
@@ -97,8 +112,8 @@ function BackupRow({ backup, onDelete, onRestore, isAdminView }: BackupRowProps)
                     size="sm"
                     variant="success"
                     onClick={() => handleAction('restore', () => onRestore(backup))}
-                    isLoading={loadingAction === 'restore'}
-                    disabled={!!loadingAction}
+                    isLoading={isRowProcessing('restore')}
+                    disabled={!!processingAction || !!loadingLocal}
                 >
                     Restore
                 </Button>
@@ -106,8 +121,8 @@ function BackupRow({ backup, onDelete, onRestore, isAdminView }: BackupRowProps)
                     size="sm"
                     variant="danger"
                     onClick={() => handleAction('delete', () => onDelete(backup.id))}
-                    isLoading={loadingAction === 'delete'}
-                    disabled={!!loadingAction}
+                    isLoading={isRowProcessing('delete')}
+                    disabled={!!processingAction || !!loadingLocal}
                 >
                     Delete
                 </Button>

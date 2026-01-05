@@ -6,7 +6,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
 import styles from './layout.module.css';
 
-function DashboardLayoutContent({ children }: { children: ReactNode }) {
+export default function DashboardLayout({ children }: { children: ReactNode }) {
     const { user, isLoading } = useAuth();
     const router = useRouter();
 
@@ -36,13 +36,5 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
                 {children}
             </main>
         </div>
-    );
-}
-
-export default function DashboardLayout({ children }: { children: ReactNode }) {
-    return (
-        <AuthProvider>
-            <DashboardLayoutContent>{children}</DashboardLayoutContent>
-        </AuthProvider>
     );
 }

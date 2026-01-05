@@ -1,35 +1,43 @@
-import { User, InviteLink } from '@/types';
 import {
-    STORAGE_KEYS,
-    getCollection,
-    setCollection,
-    generateId,
-    getTimestamp
-} from './storage';
-import { getAllUsers, getCurrentUser, getUserById } from './auth';
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    setDoc,
+    updateDoc,
+    deleteDoc,
+    query,
+    where,
+    orderBy
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { User, InviteLink } from '@/types';
+import { getCurrentUser, getUserById, getAllUsers } from './auth';
+import { generateId } from './storage';
+import { sanitizeData } from '@/lib/firestore';
+
+const INVITE_COLLECTION = 'inviteLinks';
 
 /**
- * Search users by email or display name
+ * Search users
  */
-export async function searchUsers(query: string): Promise<User[]> {
-    if (!query.trim()) return [];
+export async function searchUsers(searchTerm: string): Promise<User[]> {
+    if (!searchTerm.trim()) return [];
 
     const currentUser = await getCurrentUser();
-    if (!currentUser) return [];
-
     const allUsers = await getAllUsers();
-    const lowerQuery = query.toLowerCase();
+    const lowerQuery = searchTerm.toLowerCase();
 
     return allUsers.filter(user =>
-        user.id !== currentUser.id && // Exclude self
-        user.isPublic && // Only public users
+        user.id !== currentUser?.id &&
+        user.isPublic &&
         (user.email.toLowerCase().includes(lowerQuery) ||
             user.displayName.toLowerCase().includes(lowerQuery))
     );
 }
 
 /**
- * Get public user directory
+ * Get public directory
  */
 export async function getPublicDirectory(): Promise<User[]> {
     const currentUser = await getCurrentUser();
@@ -37,15 +45,15 @@ export async function getPublicDirectory(): Promise<User[]> {
 
     return allUsers.filter(user =>
         user.isPublic &&
-        (!currentUser || user.id !== currentUser.id) // Exclude self if logged in
+        (!currentUser || user.id !== currentUser.id)
     );
 }
 
 /**
- * Generate a unique invite code
+ * Generate invite code
  */
 function generateInviteCode(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed confusing chars
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
     for (let i = 0; i < 8; i++) {
         code += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -54,7 +62,7 @@ function generateInviteCode(): string {
 }
 
 /**
- * Create an invite link
+ * Create invite link
  */
 export async function createInviteLink(expiresInDays?: number): Promise<InviteLink | null> {
     const currentUser = await getCurrentUser();
@@ -69,73 +77,63 @@ export async function createInviteLink(expiresInDays?: number): Promise<InviteLi
         expiresAt = expiry.toISOString();
     }
 
+    const id = generateId();
     const inviteLink: InviteLink = {
-        id: generateId(),
+        id,
         creatorId: currentUser.id,
         code: generateInviteCode(),
         expiresAt,
         createdAt: now.toISOString(),
     };
 
-    const links = await getCollection<InviteLink>(STORAGE_KEYS.INVITE_LINKS);
-    await setCollection(STORAGE_KEYS.INVITE_LINKS, [...links, inviteLink]);
-
+    await setDoc(doc(db, INVITE_COLLECTION, id), sanitizeData(inviteLink));
     return inviteLink;
 }
 
 /**
- * Resolve an invite code to a user
+ * Resolve invite code
  */
 export async function resolveInviteLink(code: string): Promise<User | null> {
-    const links = await getCollection<InviteLink>(STORAGE_KEYS.INVITE_LINKS);
-    const link = links.find(l => l.code.toUpperCase() === code.toUpperCase());
+    const colRef = collection(db, INVITE_COLLECTION);
+    const q = query(colRef, where('code', '==', code.toUpperCase()));
+    const snapshot = await getDocs(q);
 
-    if (!link) return null;
+    if (snapshot.empty) return null;
+
+    const link = snapshot.docs[0].data() as InviteLink;
 
     // Check expiry
-    if (link.expiresAt) {
-        const expiryDate = new Date(link.expiresAt);
-        if (expiryDate < new Date()) {
-            return null; // Expired
-        }
+    if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+        return null;
     }
 
     return await getUserById(link.creatorId);
 }
 
 /**
- * Get invite links created by current user
+ * Get my invite links
  */
 export async function getMyInviteLinks(): Promise<InviteLink[]> {
     const currentUser = await getCurrentUser();
     if (!currentUser) return [];
 
-    const links = await getCollection<InviteLink>(STORAGE_KEYS.INVITE_LINKS);
-    return links.filter(l => l.creatorId === currentUser.id);
+    const colRef = collection(db, INVITE_COLLECTION);
+    const q = query(colRef, where('creatorId', '==', currentUser.id), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map(doc => doc.data() as InviteLink);
 }
 
 /**
- * Delete an invite link
+ * Delete invite link
  */
 export async function deleteInviteLink(id: string): Promise<boolean> {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) return false;
-
-    const links = await getCollection<InviteLink>(STORAGE_KEYS.INVITE_LINKS);
-    const link = links.find(l => l.id === id);
-
-    if (!link || link.creatorId !== currentUser.id) {
-        return false;
-    }
-
-    const filtered = links.filter(l => l.id !== id);
-    await setCollection(STORAGE_KEYS.INVITE_LINKS, filtered);
-
+    await deleteDoc(doc(db, INVITE_COLLECTION, id));
     return true;
 }
 
 /**
- * Get the full invite URL for a link
+ * Get invite URL
  */
 export function getInviteUrl(code: string): string {
     if (typeof window !== 'undefined') {

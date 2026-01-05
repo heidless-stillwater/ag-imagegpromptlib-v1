@@ -121,56 +121,112 @@
     margin-bottom: var(--space-6);
 }
 
-.roleButtons {
+.authForm {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+    text-align: left;
+}
+
+.formField {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.formField label {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+}
+
+.input {
+    padding: var(--space-3);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    color: var(--color-text-primary);
+    transition: border-color var(--transition-base);
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.error {
+    font-size: var(--text-sm);
+    color: var(--color-error);
+    margin-top: var(--space-2);
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin: var(--space-6) 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+}
+
+.divider::before,
+.divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--color-border);
+}
+
+.socialButtons {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
     margin-bottom: var(--space-6);
 }
 
-.roleCard {
-    display: flex;
-    align-items: center;
-    gap: var(--space-4);
-    padding: var(--space-4);
-    background: var(--color-bg-secondary);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    cursor: pointer;
-    transition: all var(--transition-base);
-    text-align: left;
-}
-
-.roleCard:hover {
-    border-color: var(--color-accent-primary);
-    box-shadow: var(--shadow-glow);
-    transform: translateY(-2px);
-}
-
-.roleCard:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-.roleIcon {
-    font-size: var(--text-3xl);
-    width: 60px;
-    height: 60px;
+.googleButton {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--color-bg-tertiary);
+    gap: var(--space-3);
+    padding: var(--space-3);
+    background: white;
+    color: #1f2937;
+    border: none;
     border-radius: var(--radius-lg);
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform var(--transition-base);
 }
 
-.roleInfo h3 {
-    font-size: var(--text-lg);
-    margin-bottom: var(--space-1);
+.googleButton:hover {
+    transform: translateY(-1px);
+    background-color: #f3f4f6;
 }
 
-.roleInfo p {
+.googleIcon {
+    width: 20px;
+    height: 20px;
+}
+
+.toggleAuth {
     font-size: var(--text-sm);
     color: var(--color-text-muted);
+}
+
+.toggleAuth button {
+    background: none;
+    border: none;
+    color: var(--color-primary);
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: var(--space-1);
+    padding: 0;
+}
+
+.toggleAuth button:hover {
+    text-decoration: underline;
 }
 
 .notice {
@@ -179,6 +235,7 @@
     padding: var(--space-3);
     background: var(--color-bg-tertiary);
     border-radius: var(--radius-lg);
+    margin-top: var(--space-4);
 }
 
 .features {

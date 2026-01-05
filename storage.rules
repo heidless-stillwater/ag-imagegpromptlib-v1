@@ -1,0 +1,18 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Allow authenticated users to read/write ALL paths.
+    // This is a permissive rule to ensure existing images (avatars, uploads, etc.) work.
+    // In production, you may want to restrict this further (e.g. match /users/{userId}/...).
+    match /{allPaths=**} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}

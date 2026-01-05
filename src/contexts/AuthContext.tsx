@@ -1,14 +1,26 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { User } from '@/types';
-import { getCurrentUser, loginWithRole, logout as authLogout, switchRole as authSwitchRole } from '@/services/auth';
+import { auth, db } from '@/lib/firebase';
+import {
+    logout as firebaseLogout,
+    switchRole as firebaseSwitchRole,
+    getCurrentUser,
+    login as firebaseLogin,
+    loginWithGoogle as firebaseLoginWithGoogle,
+    registerUser as firebaseRegister
+} from '@/services/auth';
 
 interface AuthContextType {
     user: User | null;
     isLoading: boolean;
     isAdmin: boolean;
-    login: (role: 'admin' | 'member') => Promise<void>;
+    login: (email: string, password: string) => Promise<void>;
+    loginWithGoogle: () => Promise<void>;
+    register: (email: string, password: string, displayName: string) => Promise<void>;
     logout: () => Promise<void>;
     switchRole: (role: 'admin' | 'member') => Promise<void>;
     refreshUser: () => Promise<void>;
@@ -21,64 +33,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const initAuth = async () => {
-            try {
-                // Check for existing session
-                const currentUser = await getCurrentUser();
-                setUser(currentUser);
-            } catch (error) {
-                console.error('Failed to initialize auth:', error);
-            } finally {
+        const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (firebaseUser) {
+                const userRef = doc(db, 'users', firebaseUser.uid);
+
+                const unsubscribeUser = onSnapshot(userRef, (doc) => {
+                    if (doc.exists()) {
+                        const userData = doc.data();
+                        setUser({
+                            id: firebaseUser.uid,
+                            email: firebaseUser.email || '',
+                            displayName: userData.displayName || firebaseUser.displayName || 'User',
+                            role: userData.role || 'member',
+                            isPublic: userData.isPublic ?? true,
+                            avatarUrl: userData.avatarUrl || firebaseUser.photoURL || '',
+                            avatarPrompt: userData.avatarPrompt || '',
+                            username: userData.username || '',
+                            loginName: userData.loginName || '',
+                            createdAt: userData.createdAt,
+                        });
+                    } else {
+                        // User exists in Auth but not yet in Firestore (rare, should be handled in login/register)
+                        setUser({
+                            id: firebaseUser.uid,
+                            email: firebaseUser.email || '',
+                            displayName: firebaseUser.displayName || 'User',
+                            role: 'member',
+                            isPublic: true,
+                            createdAt: new Date().toISOString(),
+                        });
+                    }
+                    setIsLoading(false);
+                }, (error) => {
+                    console.error('User profile snapshot error:', error);
+                    setIsLoading(false);
+                });
+
+                return () => unsubscribeUser();
+            } else {
+                setUser(null);
                 setIsLoading(false);
             }
-        };
+        });
 
-        initAuth();
+        return () => unsubscribeAuth();
     }, []);
 
-    const login = async (role: 'admin' | 'member') => {
-        setIsLoading(true);
-        try {
-            const loggedInUser = await loginWithRole(role);
-            setUser(loggedInUser);
-        } catch (error) {
-            console.error('Login failed:', error);
-        } finally {
-            setIsLoading(false);
-        }
+    const login = async (email: string, password: string) => {
+        await firebaseLogin(email, password);
+    };
+
+    const loginWithGoogle = async () => {
+        await firebaseLoginWithGoogle();
+    };
+
+    const register = async (email: string, password: string, displayName: string) => {
+        await firebaseRegister(email, password, displayName);
     };
 
     const logout = async () => {
-        setIsLoading(true);
-        try {
-            await authLogout();
-            setUser(null);
-        } catch (error) {
-            console.error('Logout failed:', error);
-        } finally {
-            setIsLoading(false);
-        }
+        await firebaseLogout();
     };
 
     const switchRole = async (role: 'admin' | 'member') => {
-        setIsLoading(true);
-        try {
-            const updatedUser = await authSwitchRole(role);
-            setUser(updatedUser);
-        } catch (error) {
-            console.error('Switch role failed:', error);
-        } finally {
-            setIsLoading(false);
-        }
+        await firebaseSwitchRole(role);
     };
 
     const refreshUser = async () => {
-        try {
-            const currentUser = await getCurrentUser();
-            setUser(currentUser);
-        } catch (error) {
-            console.error('Refresh user failed:', error);
-        }
+        const updatedUser = await getCurrentUser();
+        setUser(updatedUser);
     };
 
     return (
@@ -87,6 +110,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             isLoading,
             isAdmin: user?.role === 'admin',
             login,
+            loginWithGoogle,
+            register,
             logout,
             switchRole,
             refreshUser,

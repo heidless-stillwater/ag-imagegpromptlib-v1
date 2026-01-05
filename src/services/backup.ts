@@ -1,27 +1,42 @@
-import { Backup, PromptSet, MediaImage } from '@/types';
 import {
-    STORAGE_KEYS,
-    getCollection,
-    setCollection,
-    generateId,
-    getTimestamp
-} from './storage';
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    setDoc,
+    updateDoc,
+    deleteDoc,
+    query,
+    where,
+    orderBy
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Backup, PromptSet, MediaImage } from '@/types';
 import { getCurrentUser, isAdmin } from './auth';
+import { generateId } from './storage';
+import { sanitizeData } from '@/lib/firestore';
+
+const COLLECTION_NAME = 'backups';
 
 /**
- * Get all backups for current user
- * Admin sees all backups
+ * Get all backups
  */
 export async function getBackups(): Promise<Backup[]> {
     const currentUser = await getCurrentUser();
     if (!currentUser) return [];
 
-    const allBackups = await getCollection<Backup>(STORAGE_KEYS.BACKUPS);
     const adminMode = await isAdmin();
+    const colRef = collection(db, COLLECTION_NAME);
 
-    if (adminMode) return allBackups;
+    let q;
+    if (adminMode) {
+        q = query(colRef, orderBy('createdAt', 'desc'));
+    } else {
+        q = query(colRef, where('userId', '==', currentUser.id), orderBy('createdAt', 'desc'));
+    }
 
-    return allBackups.filter(b => b.userId === currentUser.id);
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as Backup);
 }
 
 /**
@@ -31,16 +46,20 @@ export async function createBackup(type: Backup['type']): Promise<Backup | null>
     const currentUser = await getCurrentUser();
     if (!currentUser) return null;
 
+    // We import directly to avoid circular dependency
+    const { getPromptSets } = await import('./promptSets');
+    const { getMediaImages } = await import('./media');
+
     let backupData: any = {};
 
     if (type === 'promptSet' || type === 'all') {
-        const promptSets = await getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
-        backupData.promptSets = promptSets.filter(s => s.userId === currentUser.id);
+        const promptSets = await getPromptSets();
+        backupData.promptSets = promptSets;
     }
 
     if (type === 'media' || type === 'all') {
-        const media = await getCollection<MediaImage>(STORAGE_KEYS.MEDIA);
-        backupData.media = media.filter(m => m.userId === currentUser.id);
+        const media = await getMediaImages();
+        backupData.media = media;
     }
 
     const jsonString = JSON.stringify(backupData);
@@ -48,103 +67,132 @@ export async function createBackup(type: Backup['type']): Promise<Backup | null>
     const userPrefix = (currentUser.username || currentUser.displayName || 'user').toLowerCase().replace(/\s+/g, '-');
     const fileName = `${userPrefix}-backup-${type}-${timestamp}.json`;
 
+    const id = generateId();
     const newBackup: Backup = {
-        id: generateId(),
+        id,
         userId: currentUser.id,
         type,
         file: jsonString,
         fileName,
-        createdAt: getTimestamp(),
+        createdAt: new Date().toISOString(),
     };
 
-    const backups = await getCollection<Backup>(STORAGE_KEYS.BACKUPS);
-    await setCollection(STORAGE_KEYS.BACKUPS, [...backups, newBackup]);
-
+    await setDoc(doc(db, COLLECTION_NAME, id), sanitizeData(newBackup));
     return newBackup;
 }
 
 /**
- * Delete a backup from the collection
+ * Delete backup
  */
 export async function deleteBackup(id: string): Promise<boolean> {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) return false;
-
-    const backups = await getCollection<Backup>(STORAGE_KEYS.BACKUPS);
-    const backup = backups.find(b => b.id === id);
-
-    if (!backup) return false;
-
-    // Check permission: admin or owner
-    const adminMode = await isAdmin();
-    if (!adminMode && backup.userId !== currentUser.id) {
-        return false;
-    }
-
-    const filtered = backups.filter(b => b.id !== id);
-    await setCollection(STORAGE_KEYS.BACKUPS, filtered);
+    const docRef = doc(db, COLLECTION_NAME, id);
+    await deleteDoc(docRef);
     return true;
 }
 
 /**
- * Restore data from a backup string
+ * Restore backup
  */
 export async function restoreBackup(backupJson: string): Promise<{ restoredPromptSets: number; restoredMedia: number }> {
     const currentUser = await getCurrentUser();
-    if (!currentUser) return { restoredPromptSets: 0, restoredMedia: 0 };
+    if (!currentUser) throw new Error('You must be logged in to restore a backup');
 
+    // Parse once to simple JSON
+    let data;
     try {
-        const data = JSON.parse(backupJson);
-        let restoredPromptSets = 0;
-        let restoredMedia = 0;
-
-        // Restore Prompt Sets
-        if (data.promptSets && Array.isArray(data.promptSets)) {
-            const currentPromptSets = await getCollection<PromptSet>(STORAGE_KEYS.PROMPT_SETS);
-            const newSets = [...currentPromptSets];
-
-            for (const backupSet of data.promptSets) {
-                const index = newSets.findIndex(s => s.id === backupSet.id);
-                if (index !== -1) {
-                    newSets[index] = backupSet; // Overwrite
-                } else {
-                    newSets.push(backupSet);
-                    restoredPromptSets++;
-                }
-            }
-            await setCollection(STORAGE_KEYS.PROMPT_SETS, newSets);
-        }
-
-        // Restore Media
-        if (data.media && Array.isArray(data.media)) {
-            const currentMedia = await getCollection<MediaImage>(STORAGE_KEYS.MEDIA);
-            const newMedia = [...currentMedia];
-
-            for (const backupImg of data.media) {
-                const index = newMedia.findIndex(m => m.id === backupImg.id);
-                if (index !== -1) {
-                    newMedia[index] = backupImg; // Overwrite
-                } else {
-                    newMedia.push(backupImg);
-                    restoredMedia++;
-                }
-            }
-            await setCollection(STORAGE_KEYS.MEDIA, newMedia);
-        }
-
-        return { restoredPromptSets, restoredMedia };
-    } catch (error) {
-        console.error('Failed to restore backup:', error);
+        data = JSON.parse(backupJson);
+    } catch (e) {
+        console.error('Failed to parse backup JSON', e);
         throw new Error('Invalid backup file format');
     }
+
+    let restoredPromptSets = 0;
+    let restoredMedia = 0;
+
+    const { addMediaImage } = await import('./media');
+
+    // Strict Restoration for PromptSets
+    if (data.promptSets && Array.isArray(data.promptSets)) {
+        for (const rawSet of data.promptSets) {
+            try {
+                // Manually construct versions to ensuring strict shape
+                // Use empty strings instead of null/undefined to avoid any Firestore array issues
+                const safeVersions = (Array.isArray(rawSet.versions) ? rawSet.versions : []).map((v: any) => ({
+                    id: String(v.id || generateId()),
+                    promptSetId: String(rawSet.id),
+                    versionNumber: Number(v.versionNumber) || 1,
+                    promptText: String(v.promptText || ''),
+                    imageUrl: v.imageUrl ? String(v.imageUrl) : '',
+                    imageGeneratedAt: v.imageGeneratedAt ? String(v.imageGeneratedAt) : '',
+                    notes: v.notes ? String(v.notes) : '',
+                    createdAt: v.createdAt ? String(v.createdAt) : new Date().toISOString(),
+                    updatedAt: v.updatedAt ? String(v.updatedAt) : new Date().toISOString(),
+                }));
+
+                // Strict PromptSet Construction - Base fields only first
+                const baseRestoredSet: PromptSet = {
+                    id: String(rawSet.id || generateId()),
+                    userId: currentUser.id,
+                    title: String(rawSet.title || 'Untitled Restoration'),
+                    description: rawSet.description ? String(rawSet.description) : '',
+                    categoryId: rawSet.categoryId ? String(rawSet.categoryId) : '',
+                    notes: rawSet.notes ? String(rawSet.notes) : '',
+                    versions: [], // Empty initially
+                    createdAt: rawSet.createdAt ? String(rawSet.createdAt) : new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+
+                // Step 1: Save base document
+                console.log('Restoring Base Set:', baseRestoredSet.id);
+                await setDoc(doc(db, 'promptSets', baseRestoredSet.id), baseRestoredSet);
+
+                // Step 2: Update with versions
+                try {
+                    console.log('Appending versions to:', baseRestoredSet.id, safeVersions.length);
+                    // We must cast safeVersions to any because strict Typescript might complain 
+                    // about matching exact PromptVersion type if we changed nulls to strings,
+                    // but Firestore doesn't care.
+                    await updateDoc(doc(db, 'promptSets', baseRestoredSet.id), {
+                        versions: safeVersions
+                    });
+                    restoredPromptSets++;
+                } catch (versionErr) {
+                    console.error('Failed to append versions for set:', baseRestoredSet.id, versionErr);
+                    // We still count it as effectively restored, just incomplete
+                }
+            } catch (err) {
+                console.error('Failed to restore prompt set:', rawSet?.id, err);
+                // Continue to next item instead of crashing entire restore
+            }
+        }
+    }
+
+    // Strict Restoration for Media
+    if (data.media && Array.isArray(data.media)) {
+        for (const rawImg of data.media) {
+            try {
+                if (!rawImg.url) continue;
+
+                // addMediaImage handles duplicates and basic structure
+                await addMediaImage(String(rawImg.url), {
+                    promptSetId: rawImg.promptSetId ? String(rawImg.promptSetId) : undefined,
+                    versionId: rawImg.versionId ? String(rawImg.versionId) : undefined
+                });
+                restoredMedia++;
+            } catch (err) {
+                console.error('Failed to restore media:', rawImg?.id, err);
+            }
+        }
+    }
+
+    return { restoredPromptSets, restoredMedia };
 }
 
 /**
- * Helper to download a backup as a file
+ * Download
  */
 export function downloadBackupFile(backup: Backup) {
     if (typeof window === 'undefined') return;
-
     const blob = new Blob([backup.file], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

@@ -1,14 +1,23 @@
-import { Category } from '@/types';
 import {
-    STORAGE_KEYS,
-    getCollection,
-    setCollection,
-    generateId,
-    getTimestamp
-} from './storage';
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    setDoc,
+    updateDoc,
+    deleteDoc,
+    query,
+    where,
+    orderBy
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Category } from '@/types';
 import { getCurrentUser, isAdmin } from './auth';
+import { generateId } from './storage';
+import { sanitizeData } from '@/lib/firestore';
 
-// Default system categories
+const COLLECTION_NAME = 'categories';
+
 const DEFAULT_CATEGORIES: Category[] = [
     {
         id: 'cat-landscape',
@@ -53,27 +62,33 @@ const DEFAULT_CATEGORIES: Category[] = [
 ];
 
 /**
- * Initialize categories if not present
+ * Initialize categories
  */
 export async function initializeCategories(): Promise<void> {
-    const existingCategories = await getCollection<Category>(STORAGE_KEYS.CATEGORIES);
-    const hasSystemCategories = existingCategories.some(c => c.isSystem);
+    const colRef = collection(db, COLLECTION_NAME);
+    const q = query(colRef, where('isSystem', '==', true));
+    const snapshot = await getDocs(q);
 
-    if (!hasSystemCategories) {
-        await setCollection(STORAGE_KEYS.CATEGORIES, [...DEFAULT_CATEGORIES, ...existingCategories]);
+    if (snapshot.empty) {
+        console.log('Initializing system categories in Firestore...');
+        for (const cat of DEFAULT_CATEGORIES) {
+            await setDoc(doc(db, COLLECTION_NAME, cat.id), sanitizeData(cat));
+        }
     }
 }
 
 /**
- * Get all categories visible to current user
+ * Get all categories
  */
 export async function getCategories(): Promise<Category[]> {
     await initializeCategories();
-    const allCategories = await getCollection<Category>(STORAGE_KEYS.CATEGORIES);
     const currentUser = await getCurrentUser();
     const adminMode = await isAdmin();
 
-    // Return system categories + user's personal categories
+    const colRef = collection(db, COLLECTION_NAME);
+    const snapshot = await getDocs(colRef);
+    const allCategories = snapshot.docs.map(doc => doc.data() as Category);
+
     return allCategories.filter(c =>
         c.isSystem ||
         (currentUser && c.userId === currentUser.id) ||
@@ -82,34 +97,35 @@ export async function getCategories(): Promise<Category[]> {
 }
 
 /**
- * Get system categories only
+ * Get system categories
  */
 export async function getSystemCategories(): Promise<Category[]> {
-    await initializeCategories();
-    const categories = await getCollection<Category>(STORAGE_KEYS.CATEGORIES);
-    return categories.filter(c => c.isSystem);
+    const colRef = collection(db, COLLECTION_NAME);
+    const q = query(colRef, where('isSystem', '==', true));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as Category);
 }
 
 /**
- * Get personal categories for current user
+ * Get personal categories
  */
 export async function getPersonalCategories(): Promise<Category[]> {
     const currentUser = await getCurrentUser();
     if (!currentUser) return [];
 
-    const categories = await getCollection<Category>(STORAGE_KEYS.CATEGORIES);
-    return categories.filter(
-        c => !c.isSystem && c.userId === currentUser.id
-    );
+    const colRef = collection(db, COLLECTION_NAME);
+    const q = query(colRef, where('userId', '==', currentUser.id), where('isSystem', '==', false));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as Category);
 }
 
 /**
  * Get category by ID
  */
 export async function getCategoryById(id: string): Promise<Category | null> {
-    await initializeCategories();
-    const categories = await getCollection<Category>(STORAGE_KEYS.CATEGORIES);
-    return categories.find(c => c.id === id) || null;
+    const docRef = doc(db, COLLECTION_NAME, id);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists() ? docSnap.data() as Category : null;
 }
 
 /**
@@ -123,28 +139,20 @@ export async function createCategory(data: {
     const currentUser = await getCurrentUser();
     const adminMode = await isAdmin();
 
-    // Only admin can create system categories
-    if (data.isSystem && !adminMode) {
-        return null;
-    }
+    if (data.isSystem && !adminMode) return null;
+    if (!data.isSystem && !currentUser) return null;
 
-    // Must be logged in to create personal category
-    if (!data.isSystem && !currentUser) {
-        return null;
-    }
-
+    const id = generateId();
     const newCategory: Category = {
-        id: generateId(),
+        id,
         name: data.name,
-        description: data.description,
+        description: data.description || '',
         userId: data.isSystem ? null : currentUser!.id,
         isSystem: data.isSystem || false,
-        createdAt: getTimestamp(),
+        createdAt: new Date().toISOString(),
     };
 
-    const categories = await getCollection<Category>(STORAGE_KEYS.CATEGORIES);
-    await setCollection(STORAGE_KEYS.CATEGORIES, [...categories, newCategory]);
-
+    await setDoc(doc(db, COLLECTION_NAME, id), sanitizeData(newCategory));
     return newCategory;
 }
 
@@ -155,56 +163,32 @@ export async function updateCategory(
     id: string,
     updates: Partial<Pick<Category, 'name' | 'description'>>
 ): Promise<Category | null> {
-    const categories = await getCollection<Category>(STORAGE_KEYS.CATEGORIES);
-    const categoryIndex = categories.findIndex(c => c.id === id);
+    const category = await getCategoryById(id);
+    if (!category) return null;
 
-    if (categoryIndex === -1) return null;
-
-    const category = categories[categoryIndex];
     const currentUser = await getCurrentUser();
     const adminMode = await isAdmin();
 
-    // Check permission: admin can update any, user can update their own
-    if (category.isSystem && !adminMode) {
-        return null;
-    }
-    if (!category.isSystem && !adminMode && category.userId !== currentUser?.id) {
-        return null;
-    }
+    if (category.isSystem && !adminMode) return null;
+    if (!category.isSystem && !adminMode && category.userId !== currentUser?.id) return null;
 
-    const updatedCategory: Category = {
-        ...category,
-        ...updates,
-    };
-
-    categories[categoryIndex] = updatedCategory;
-    await setCollection(STORAGE_KEYS.CATEGORIES, categories);
-
-    return updatedCategory;
+    await updateDoc(doc(db, COLLECTION_NAME, id), sanitizeData(updates));
+    return { ...category, ...updates } as Category;
 }
 
 /**
  * Delete a category
  */
 export async function deleteCategory(id: string): Promise<boolean> {
-    const categories = await getCollection<Category>(STORAGE_KEYS.CATEGORIES);
-    const category = categories.find(c => c.id === id);
-
+    const category = await getCategoryById(id);
     if (!category) return false;
 
     const currentUser = await getCurrentUser();
     const adminMode = await isAdmin();
 
-    // Check permission
-    if (category.isSystem && !adminMode) {
-        return false;
-    }
-    if (!category.isSystem && !adminMode && category.userId !== currentUser?.id) {
-        return false;
-    }
+    if (category.isSystem && !adminMode) return false;
+    if (!category.isSystem && !adminMode && category.userId !== currentUser?.id) return false;
 
-    const filteredCategories = categories.filter(c => c.id !== id);
-    await setCollection(STORAGE_KEYS.CATEGORIES, filteredCategories);
-
+    await deleteDoc(doc(db, COLLECTION_NAME, id));
     return true;
 }

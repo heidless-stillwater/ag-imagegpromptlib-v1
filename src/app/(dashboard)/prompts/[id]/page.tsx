@@ -8,6 +8,8 @@ import { getPromptSetById, updatePromptSet, addVersion, updateVersion, deleteVer
 import { getCategories } from '@/services/categories';
 import { getAverageRating, ratePromptSet, getUserRating } from '@/services/ratings';
 import { generateImage, checkCache } from '@/services/gemini';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { storage } from '@/lib/firebase';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
@@ -187,6 +189,26 @@ export default function PromptDetailPage() {
         setIsGenerateModalOpen(true);
     };
 
+    // Helper to handle image uploads
+    const processAndUploadImage = async (imageUrl: string) => {
+        let finalImageUrl = imageUrl;
+
+        // If it's a data URL (Base64), upload to Storage to avoid Firestore limits
+        if (imageUrl.startsWith('data:')) {
+            try {
+                const timestamp = Date.now();
+                const storagePath = `generated/${promptSet!.id}/${selectedVersion!.id}_${timestamp}.png`;
+                const storageRef = ref(storage, storagePath);
+                await uploadString(storageRef, imageUrl, 'data_url');
+                finalImageUrl = await getDownloadURL(storageRef);
+            } catch (storageErr) {
+                console.error('Storage upload failed:', storageErr);
+                throw new Error('Failed to upload generated image to storage.');
+            }
+        }
+        return finalImageUrl;
+    };
+
     const handleGenerate = async (mode: 'unsplash' | 'test' | 'live' = 'live') => {
         if (!selectedVersion || !promptSet) return;
 
@@ -207,9 +229,13 @@ export default function PromptDetailPage() {
                     });
                     setIsGenerateModalOpen(false);
                 } else if (result.imageUrl) {
-                    // Update version with image
+
+                    // Process image (upload if needed)
+                    const finalImageUrl = await processAndUploadImage(result.imageUrl);
+
+                    // Update version with image URL (storage or external)
                     await updateVersion(promptSet.id, selectedVersion.id, {
-                        imageUrl: result.imageUrl,
+                        imageUrl: finalImageUrl,
                         imageGeneratedAt: new Date().toISOString(),
                     });
                     await loadData();
@@ -219,7 +245,8 @@ export default function PromptDetailPage() {
                 setGenerateError(result.error || 'Failed to generate image');
             }
         } catch (err) {
-            setGenerateError('An unexpected error occurred during generation.');
+            console.error('Generation flow error:', err);
+            setGenerateError(err instanceof Error ? err.message : 'An unexpected error occurred during generation.');
         } finally {
             setIsGenerating(false);
         }
@@ -497,8 +524,11 @@ export default function PromptDetailPage() {
                                 <Button variant="secondary" onClick={() => setIsGenerateModalOpen(false)}>Cancel</Button>
                                 <Button onClick={async () => {
                                     if (selectedVersion && promptSet) {
+                                        // Process image (upload if needed)
+                                        const finalImageUrl = await processAndUploadImage(cachedImage);
+
                                         await updateVersion(promptSet.id, selectedVersion.id, {
-                                            imageUrl: cachedImage,
+                                            imageUrl: finalImageUrl,
                                             imageGeneratedAt: new Date().toISOString(),
                                         });
                                         await loadData();

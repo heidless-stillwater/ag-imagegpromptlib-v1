@@ -1,0 +1,50 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Core Data
+    match /promptSets/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // New collections needed for full app functionality
+    match /notifications/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /ratings/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /shares/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /media/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /categories/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /backups/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Default deny for safety
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

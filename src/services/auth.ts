@@ -1,237 +1,199 @@
-import { User } from '@/types';
 import {
-    STORAGE_KEYS,
-    getItem,
-    setItem,
-    removeItem,
-    getCollection,
-    setCollection,
-    generateId,
-    getTimestamp
-} from './storage';
-
-// Default mock users for testing
-const DEFAULT_USERS: User[] = [
-    {
-        id: 'admin-001',
-        email: 'admin@example.com',
-        displayName: 'Admin User',
-        password: 'password',
-        role: 'admin',
-        isPublic: true,
-        createdAt: '2024-01-01T00:00:00.000Z',
-    },
-    {
-        id: 'member-001',
-        email: 'member@example.com',
-        displayName: 'Test Member',
-        password: 'password',
-        role: 'member',
-        isPublic: true,
-        createdAt: '2024-01-01T00:00:00.000Z',
-    },
-    {
-        id: 'member-002',
-        email: 'jane@example.com',
-        displayName: 'Jane Developer',
-        password: 'password',
-        role: 'member',
-        isPublic: true,
-        createdAt: '2024-01-02T00:00:00.000Z',
-    },
-    {
-        id: 'member-003',
-        email: 'bob@example.com',
-        displayName: 'Bob Artist',
-        password: 'password',
-        role: 'member',
-        isPublic: false,
-        createdAt: '2024-01-03T00:00:00.000Z',
-    },
-];
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    GoogleAuthProvider,
+    signInWithPopup,
+    User as FirebaseUser
+} from 'firebase/auth';
+import { doc, getDoc, setDoc, updateDoc, getDocs, collection } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
+import { User } from '@/types';
+import { sanitizeData } from '@/lib/firestore';
 
 /**
- * Initialize users if not already present
+ * Convert Firebase User and Firestore Data to our User type
  */
-export async function initializeUsers(): Promise<void> {
-    const existingUsers = await getCollection<User>(STORAGE_KEYS.USERS);
-    if (existingUsers.length === 0) {
-        await setCollection(STORAGE_KEYS.USERS, DEFAULT_USERS);
+const mapToAppUser = (firebaseUser: FirebaseUser, userData: any): User => ({
+    id: firebaseUser.uid,
+    email: firebaseUser.email || '',
+    displayName: userData?.displayName || firebaseUser.displayName || 'Anonymous User',
+    role: userData?.role || 'member',
+    isPublic: userData?.isPublic ?? true,
+    avatarUrl: userData?.avatarUrl || firebaseUser.photoURL || '',
+    avatarPrompt: userData?.avatarPrompt || '',
+    username: userData?.username || '',
+    loginName: userData?.loginName || '',
+    createdAt: userData?.createdAt || new Date().toISOString(),
+});
+
+/**
+ * Register a new user with email and password
+ */
+export async function registerUser(email: string, password: string, displayName: string): Promise<User | null> {
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const firebaseUser = userCredential.user;
+
+        const userData = {
+            id: firebaseUser.uid,
+            email,
+            displayName,
+            role: 'member',
+            isPublic: true,
+            createdAt: new Date().toISOString(),
+        };
+
+        // Save to master 'users' collection
+        await setDoc(doc(db, 'users', firebaseUser.uid), sanitizeData(userData));
+
+        return mapToAppUser(firebaseUser, userData);
+    } catch (error) {
+        console.error('Registration error:', error);
+        throw error;
     }
 }
 
 /**
- * Get all users
+ * Login with email and password
  */
-export async function getAllUsers(): Promise<User[]> {
-    await initializeUsers();
-    return await getCollection<User>(STORAGE_KEYS.USERS);
+export async function login(email: string, password: string): Promise<User | null> {
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const firebaseUser = userCredential.user;
+
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        const userData = userDoc.exists() ? userDoc.data() : null;
+
+        return mapToAppUser(firebaseUser, userData);
+    } catch (error) {
+        console.error('Login error:', error);
+        throw error;
+    }
 }
 
 /**
- * Get user by ID
+ * Login with Google
  */
-export async function getUserById(id: string): Promise<User | null> {
-    const users = await getAllUsers();
-    return users.find(u => u.id === id) || null;
+export async function loginWithGoogle(): Promise<User | null> {
+    try {
+        const provider = new GoogleAuthProvider();
+        const userCredential = await signInWithPopup(auth, provider);
+        const firebaseUser = userCredential.user;
+
+        // Check if user exists in Firestore
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userDoc = await getDoc(userRef);
+
+        let userData;
+        if (!userDoc.exists()) {
+            // Initialize new user profile
+            userData = {
+                id: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName || 'Google User',
+                role: 'member',
+                isPublic: true,
+                createdAt: new Date().toISOString(),
+                avatarUrl: firebaseUser.photoURL,
+            };
+            await setDoc(userRef, sanitizeData(userData));
+        } else {
+            userData = userDoc.data();
+        }
+
+        return mapToAppUser(firebaseUser, userData);
+    } catch (error) {
+        console.error('Google login error:', error);
+        throw error;
+    }
 }
 
 /**
- * Get user by email
+ * Logout
  */
-export async function getUserByEmail(email: string): Promise<User | null> {
-    const users = await getAllUsers();
-    return users.find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
+export async function logout(): Promise<void> {
+    await signOut(auth);
 }
 
 /**
- * Get current logged-in user
+ * Update user profile
+ */
+export async function updateUserProfile(userId: string, updates: Partial<User>): Promise<User | null> {
+    try {
+        const userRef = doc(db, 'users', userId);
+
+        // Remove 'password' if it's there (we use Firebase Auth for password changes)
+        const { password, ...firestoreUpdates } = updates as any;
+
+        await updateDoc(userRef, sanitizeData(firestoreUpdates));
+
+        // If password is provided, it's handled via different Firebase Auth methods 
+        // usually in a sensitive flow, but for now we skip it or handle it in Profile page.
+
+        const updatedDoc = await getDoc(userRef);
+        if (updatedDoc.exists()) {
+            const firebaseUser = auth.currentUser;
+            if (firebaseUser) {
+                return mapToAppUser(firebaseUser, updatedDoc.data());
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error('Update profile error:', error);
+        return null;
+    }
+}
+
+/**
+ * Get current user data
  */
 export async function getCurrentUser(): Promise<User | null> {
-    return await getItem<User>(STORAGE_KEYS.CURRENT_USER);
-}
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) return null;
 
-/**
- * Login as a user (mock authentication)
- */
-export async function login(email: string): Promise<User | null> {
-    await initializeUsers();
-    const user = await getUserByEmail(email);
-
-    if (user) {
-        await setItem(STORAGE_KEYS.CURRENT_USER, user);
-        return user;
+    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+    if (userDoc.exists()) {
+        return mapToAppUser(firebaseUser, userDoc.data());
     }
 
     return null;
 }
 
 /**
- * Login with a specific role (for testing)
+ * Get user by ID
  */
-export async function loginWithRole(role: 'admin' | 'member'): Promise<User> {
-    await initializeUsers();
-    const users = await getAllUsers();
-    const user = users.find(u => u.role === role);
-
-    if (user) {
-        await setItem(STORAGE_KEYS.CURRENT_USER, user);
-        return user;
+export async function getUserById(userId: string): Promise<User | null> {
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    if (userDoc.exists()) {
+        return { id: userId, ...userDoc.data() } as User;
     }
-
-    // Fallback: create a new user with the role
-    const newUser: User = {
-        id: generateId(),
-        email: `${role}@example.com`,
-        displayName: `Test ${role}`,
-        role,
-        isPublic: true,
-        createdAt: getTimestamp(),
-    };
-
-    const updatedUsers = [...users, newUser];
-    await setCollection(STORAGE_KEYS.USERS, updatedUsers);
-    await setItem(STORAGE_KEYS.CURRENT_USER, newUser);
-
-    return newUser;
+    return null;
 }
 
 /**
- * Logout current user
+ * Get all users
  */
-export async function logout(): Promise<void> {
-    await removeItem(STORAGE_KEYS.CURRENT_USER);
+export async function getAllUsers(): Promise<User[]> {
+    const snapshot = await getDocs(collection(db, 'users'));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
 }
 
 /**
- * Switch current user's role (for testing)
- */
-export async function switchRole(newRole: 'admin' | 'member'): Promise<User | null> {
-    const currentUser = await getCurrentUser();
-
-    if (!currentUser) {
-        return await loginWithRole(newRole);
-    }
-
-    const updatedUser: User = {
-        ...currentUser,
-        role: newRole,
-    };
-
-    // Update in users collection
-    const users = await getAllUsers();
-    const userIndex = users.findIndex(u => u.id === currentUser.id);
-
-    if (userIndex !== -1) {
-        users[userIndex] = updatedUser;
-        await setCollection(STORAGE_KEYS.USERS, users);
-    }
-
-    await setItem(STORAGE_KEYS.CURRENT_USER, updatedUser);
-
-    return updatedUser;
-}
-
-/**
- * Register a new user
- */
-export async function registerUser(email: string, displayName: string, role: 'admin' | 'member' = 'member'): Promise<User | null> {
-    const existingUser = await getUserByEmail(email);
-
-    if (existingUser) {
-        return null; // User already exists
-    }
-
-    const newUser: User = {
-        id: generateId(),
-        email,
-        displayName,
-        role,
-        isPublic: true,
-        createdAt: getTimestamp(),
-    };
-
-    const users = await getAllUsers();
-    await setCollection(STORAGE_KEYS.USERS, [...users, newUser]);
-
-    return newUser;
-}
-
-/**
- * Update user profile
- */
-export async function updateUserProfile(
-    userId: string,
-    updates: Partial<Pick<User, 'displayName' | 'email' | 'password' | 'role' | 'isPublic' | 'username' | 'loginName' | 'avatarUrl' | 'avatarPrompt'>>
-): Promise<User | null> {
-    const users = await getAllUsers();
-    const userIndex = users.findIndex(u => u.id === userId);
-
-    if (userIndex === -1) {
-        return null;
-    }
-
-    const updatedUser: User = {
-        ...users[userIndex],
-        ...updates,
-    };
-
-    users[userIndex] = updatedUser;
-    await setCollection(STORAGE_KEYS.USERS, users);
-
-    // Update current user if this is the logged-in user
-    const currentUser = await getCurrentUser();
-    if (currentUser?.id === userId) {
-        await setItem(STORAGE_KEYS.CURRENT_USER, updatedUser);
-    }
-
-    return updatedUser;
-}
-
-/**
- * Check if current user is admin
+ * Check if admin
  */
 export async function isAdmin(): Promise<boolean> {
     const user = await getCurrentUser();
     return user?.role === 'admin';
+}
+
+/**
+ * Switch role (Dev only / Demo functionality)
+ */
+export async function switchRole(newRole: 'admin' | 'member'): Promise<User | null> {
+    const user = await getCurrentUser();
+    if (!user) return null;
+
+    return await updateUserProfile(user.id, { role: newRole });
 }

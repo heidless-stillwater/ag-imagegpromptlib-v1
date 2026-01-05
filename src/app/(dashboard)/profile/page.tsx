@@ -8,6 +8,7 @@ import { generateImage } from '@/services/gemini';
 import { MediaImage } from '@/types';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import ResetPasswordModal from '@/components/profile/ResetPasswordModal';
 import styles from './page.module.css';
 
@@ -34,6 +35,17 @@ export default function ProfilePage() {
     const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
     const [needsGenConfirmation, setNeedsGenConfirmation] = useState(false);
     const [avatarPrompt, setAvatarPrompt] = useState('');
+    const [feedback, setFeedback] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        variant: 'info' | 'success' | 'danger';
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        variant: 'info'
+    });
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -126,11 +138,21 @@ export default function ProfilePage() {
                 // Also save to Media library
                 await addMediaImage(result.imageUrl!);
             } else {
-                alert(result.error || 'Failed to generate avatar');
+                setFeedback({
+                    isOpen: true,
+                    title: 'Generation Failed',
+                    message: result.error || 'Failed to generate avatar',
+                    variant: 'danger'
+                });
             }
         } catch (error) {
             console.error('Avatar generation error:', error);
-            alert('Failed to generate avatar');
+            setFeedback({
+                isOpen: true,
+                title: 'Error',
+                message: 'Failed to generate avatar. Please try again.',
+                variant: 'danger'
+            });
         } finally {
             setIsGeneratingAvatar(false);
         }
@@ -333,6 +355,17 @@ export default function ProfilePage() {
             <ResetPasswordModal
                 isOpen={isPasswordModalOpen}
                 onClose={() => setIsPasswordModalOpen(false)}
+            />
+
+            <ConfirmationModal
+                isOpen={feedback.isOpen}
+                onClose={() => setFeedback(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={() => setFeedback(prev => ({ ...prev, isOpen: false }))}
+                title={feedback.title}
+                message={feedback.message}
+                variant={feedback.variant}
+                confirmLabel="Got It.."
+                cancelLabel=""
             />
         </div>
     );

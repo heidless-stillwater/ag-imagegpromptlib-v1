@@ -6,6 +6,7 @@ import { MediaImage } from '@/types';
 import { getMediaImages, deleteMediaImage, syncImagesFromVersions } from '@/services/media';
 import MediaGallery from '@/components/media/MediaGallery';
 import Button from '@/components/ui/Button';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import styles from './page.module.css';
 
 export default function MediaPage() {
@@ -13,6 +14,17 @@ export default function MediaPage() {
     const [images, setImages] = useState<MediaImage[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [feedback, setFeedback] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        variant: 'info' | 'success' | 'danger';
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        variant: 'info'
+    });
 
     useEffect(() => {
         if (user) {
@@ -50,14 +62,29 @@ export default function MediaPage() {
         try {
             const result = await syncImagesFromVersions();
             if (result.added > 0) {
-                alert(`Successfully synced ${result.added} new images from your versions.`);
+                setFeedback({
+                    isOpen: true,
+                    title: 'Sync Complete',
+                    message: `Successfully synced ${result.added} new images from your versions.`,
+                    variant: 'success'
+                });
                 await loadImages();
             } else {
-                alert('All images are already in your library.');
+                setFeedback({
+                    isOpen: true,
+                    title: 'Sync Result',
+                    message: 'All images are already in your library.',
+                    variant: 'info'
+                });
             }
         } catch (error) {
             console.error('Sync failed:', error);
-            alert('Failed to sync images. Please try again.');
+            setFeedback({
+                isOpen: true,
+                title: 'Sync Failed',
+                message: 'Failed to sync images. Please try again.',
+                variant: 'danger'
+            });
         } finally {
             setIsSyncing(false);
         }
@@ -96,6 +123,17 @@ export default function MediaPage() {
                     isAdminView={isAdmin}
                 />
             )}
+
+            <ConfirmationModal
+                isOpen={feedback.isOpen}
+                onClose={() => setFeedback(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={() => setFeedback(prev => ({ ...prev, isOpen: false }))}
+                title={feedback.title}
+                message={feedback.message}
+                variant={feedback.variant}
+                confirmLabel="Got It.."
+                cancelLabel=""
+            />
         </div>
     );
 }

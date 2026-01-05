@@ -10,6 +10,7 @@ import { getAverageRating, ratePromptSet, getUserRating } from '@/services/ratin
 import { generateImage, checkCache } from '@/services/gemini';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import StarRating from '@/components/ratings/StarRating';
 import ShareModal from '@/components/shares/ShareModal';
 import styles from './page.module.css';
@@ -47,6 +48,33 @@ export default function PromptDetailPage() {
     // Rating state
     const [averageRating, setAverageRating] = useState({ average: 0, count: 0 });
     const [userRating, setUserRating] = useState(0);
+
+    // Confirmation Modal states
+    const [confirmAction, setConfirmAction] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant?: 'danger' | 'info' | 'success';
+        confirmLabel?: string;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { }
+    });
+
+    const [feedback, setFeedback] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        variant: 'info' | 'success' | 'danger';
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        variant: 'info'
+    });
 
     useEffect(() => {
         loadData();
@@ -115,20 +143,31 @@ export default function PromptDetailPage() {
     const handleAddVersion = async () => {
         if (!promptSet || !newVersionPrompt.trim()) return;
 
-        await addVersion(promptSet.id, newVersionPrompt, newVersionNotes);
+        const version = await addVersion(promptSet.id, newVersionPrompt, newVersionNotes);
         await loadData();
+        if (version) {
+            setSelectedVersion(version);
+        }
         setIsVersionModalOpen(false);
         setNewVersionPrompt('');
         setNewVersionNotes('');
     };
 
-    const handleDeleteVersion = async (versionId: string) => {
+    const handleDeleteVersion = (versionId: string) => {
         if (!promptSet) return;
-        if (!confirm('Delete this version?')) return;
-
-        await deleteVersion(promptSet.id, versionId);
-        await loadData();
-        setSelectedVersion(null);
+        setConfirmAction({
+            isOpen: true,
+            title: 'Delete Version',
+            message: 'Are you sure you want to delete this version? This action cannot be undone.',
+            variant: 'danger',
+            confirmLabel: 'Delete',
+            onConfirm: async () => {
+                await deleteVersion(promptSet.id, versionId);
+                await loadData();
+                setSelectedVersion(null);
+                setConfirmAction(prev => ({ ...prev, isOpen: false }));
+            }
+        });
     };
 
     const handleRating = async (score: number) => {
@@ -160,7 +199,12 @@ export default function PromptDetailPage() {
 
             if (result.success) {
                 if (isTest) {
-                    alert('NanoBanana connection verified successfully! (Zero tokens used)');
+                    setFeedback({
+                        isOpen: true,
+                        title: 'Connection Verified',
+                        message: 'NanoBanana connection verified successfully! (Zero tokens used)',
+                        variant: 'success'
+                    });
                     setIsGenerateModalOpen(false);
                 } else if (result.imageUrl) {
                     // Update version with image
@@ -181,20 +225,34 @@ export default function PromptDetailPage() {
         }
     };
 
-    const handleRemoveImage = async () => {
+    const handleRemoveImage = () => {
         if (!selectedVersion || !promptSet) return;
-        if (!confirm('Are you sure you want to remove this image?')) return;
 
-        try {
-            await updateVersion(promptSet.id, selectedVersion.id, {
-                imageUrl: undefined,
-                imageGeneratedAt: undefined,
-            });
-            await loadData();
-        } catch (error) {
-            console.error('Failed to remove image:', error);
-            alert('Failed to remove image. Please try again.');
-        }
+        setConfirmAction({
+            isOpen: true,
+            title: 'Remove Image',
+            message: 'Are you sure you want to remove this image from the version?',
+            variant: 'danger',
+            confirmLabel: 'Remove',
+            onConfirm: async () => {
+                setConfirmAction(prev => ({ ...prev, isOpen: false }));
+                try {
+                    await updateVersion(promptSet.id, selectedVersion.id, {
+                        imageUrl: undefined,
+                        imageGeneratedAt: undefined,
+                    });
+                    await loadData();
+                } catch (error) {
+                    console.error('Failed to remove image:', error);
+                    setFeedback({
+                        isOpen: true,
+                        title: 'Error',
+                        message: 'Failed to remove image. Please try again.',
+                        variant: 'danger'
+                    });
+                }
+            }
+        });
     };
 
     if (!promptSet) {
@@ -525,6 +583,27 @@ export default function PromptDetailPage() {
                     onClose={() => setIsShareModalOpen(false)}
                 />
             )}
+            {/* Confirmation and Feedback Modals */}
+            <ConfirmationModal
+                isOpen={confirmAction.isOpen}
+                onClose={() => setConfirmAction(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmAction.onConfirm}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                variant={confirmAction.variant}
+                confirmLabel={confirmAction.confirmLabel}
+            />
+
+            <ConfirmationModal
+                isOpen={feedback.isOpen}
+                onClose={() => setFeedback(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={() => setFeedback(prev => ({ ...prev, isOpen: false }))}
+                title={feedback.title}
+                message={feedback.message}
+                variant={feedback.variant}
+                confirmLabel="Got It.."
+                cancelLabel=""
+            />
         </div>
     );
 }

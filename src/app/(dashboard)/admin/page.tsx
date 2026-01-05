@@ -9,6 +9,7 @@ import { getCategories, createCategory, updateCategory, deleteCategory } from '@
 import { getAllUsers } from '@/services/auth';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import PromptSetCard from '@/components/prompts/PromptSetCard';
 import ShareModal from '@/components/shares/ShareModal';
 import styles from './page.module.css';
@@ -34,6 +35,21 @@ export default function AdminPage() {
     // Share modal
     const [shareModalPromptSetId, setShareModalPromptSetId] = useState<string | null>(null);
 
+    // Confirmation Modal state
+    const [confirmDelete, setConfirmDelete] = useState<{
+        isOpen: boolean;
+        id: string;
+        type: 'promptSet' | 'category';
+        title: string;
+        message: string;
+    }>({
+        isOpen: false,
+        id: '',
+        type: 'promptSet',
+        title: '',
+        message: ''
+    });
+
     useEffect(() => {
         if (!isAdmin) {
             router.push('/dashboard');
@@ -57,10 +73,39 @@ export default function AdminPage() {
         }
     };
 
-    const handleDeletePromptSet = async (id: string) => {
-        if (confirm('Are you sure you want to delete this prompt set?')) {
-            await deletePromptSet(id);
+    const handleDeletePromptSet = (id: string) => {
+        setConfirmDelete({
+            isOpen: true,
+            id,
+            type: 'promptSet',
+            title: 'Delete Prompt Set',
+            message: 'Are you sure you want to delete this prompt set? This will remove all associated versions and images. This action cannot be undone.'
+        });
+    };
+
+    const handleDeleteCategory = (id: string) => {
+        setConfirmDelete({
+            isOpen: true,
+            id,
+            type: 'category',
+            title: 'Delete Category',
+            message: 'Are you sure you want to delete this category? Any prompt sets currently using this category will become uncategorized.'
+        });
+    };
+
+    const handleConfirmDelete = async () => {
+        const { id, type } = confirmDelete;
+        setConfirmDelete(prev => ({ ...prev, isOpen: false }));
+
+        try {
+            if (type === 'promptSet') {
+                await deletePromptSet(id);
+            } else {
+                await deleteCategory(id);
+            }
             await loadData();
+        } catch (error) {
+            console.error(`Failed to delete ${type}:`, error);
         }
     };
 
@@ -97,13 +142,6 @@ export default function AdminPage() {
 
         await loadData();
         setIsCategoryModalOpen(false);
-    };
-
-    const handleDeleteCategory = async (id: string) => {
-        if (confirm('Delete this category?')) {
-            await deleteCategory(id);
-            await loadData();
-        }
     };
 
     if (!isAdmin) return null;
@@ -263,6 +301,16 @@ export default function AdminPage() {
                     onClose={() => setShareModalPromptSetId(null)}
                 />
             )}
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={confirmDelete.isOpen}
+                onClose={() => setConfirmDelete(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={handleConfirmDelete}
+                title={confirmDelete.title}
+                message={confirmDelete.message}
+                variant="danger"
+                confirmLabel="Delete"
+            />
         </div>
     );
 }

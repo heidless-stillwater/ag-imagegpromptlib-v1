@@ -7,6 +7,7 @@ import { getIncomingShares, getOutgoingShares, acceptShare, rejectShare, removeS
 import { getUserById, getAllUsers } from '@/services/auth';
 import { useNotifications } from '@/hooks/useNotifications';
 import Button from '@/components/ui/Button';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import styles from './page.module.css';
 
 type TabType = 'incoming' | 'outgoing';
@@ -17,8 +18,22 @@ export default function SharesPage() {
     const [activeTab, setActiveTab] = useState<TabType>('incoming');
     const [incomingShares, setIncomingShares] = useState<Share[]>([]);
     const [outgoingShares, setOutgoingShares] = useState<Share[]>([]);
-
     const [users, setUsers] = useState<User[]>([]);
+
+    // Confirmation Modal state
+    const [confirmAction, setConfirmAction] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant?: 'danger' | 'info' | 'success';
+        confirmLabel?: string;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { }
+    });
 
     useEffect(() => {
         loadShares();
@@ -49,28 +64,47 @@ export default function SharesPage() {
         }
     };
 
-    const handleReject = async (shareId: string) => {
-        if (confirm('Are you sure you want to reject this share?')) {
-            try {
-                await rejectShare(shareId);
-                await loadShares();
-                refreshNotifications();
-            } catch (error) {
-                console.error('Failed to reject share:', error);
+    const handleReject = (shareId: string) => {
+        setConfirmAction({
+            isOpen: true,
+            title: 'Reject Share',
+            message: 'Are you sure you want to reject this incoming prompt set share?',
+            variant: 'danger',
+            confirmLabel: 'Reject',
+            onConfirm: async () => {
+                setConfirmAction(prev => ({ ...prev, isOpen: false }));
+                try {
+                    await rejectShare(shareId);
+                    await loadShares();
+                    refreshNotifications();
+                } catch (error) {
+                    console.error('Failed to reject share:', error);
+                }
             }
-        }
+        });
     };
 
-    const handleRemove = async (shareId: string) => {
-        if (confirm('Are you sure you want to remove this share from your queue?')) {
-            try {
-                await removeShare(shareId);
-                await loadShares();
-                refreshNotifications();
-            } catch (error) {
-                console.error('Failed to remove share:', error);
+    const handleRemove = (shareId: string) => {
+        const isOutgoingPending = outgoingShares.find(s => s.id === shareId && s.state === 'inTransit');
+        const label = isOutgoingPending ? 'Cancel' : 'Remove';
+
+        setConfirmAction({
+            isOpen: true,
+            title: `${label} Share`,
+            message: `Are you sure you want to ${label.toLowerCase()} this share?`,
+            variant: 'danger',
+            confirmLabel: label,
+            onConfirm: async () => {
+                setConfirmAction(prev => ({ ...prev, isOpen: false }));
+                try {
+                    await removeShare(shareId);
+                    await loadShares();
+                    refreshNotifications();
+                } catch (error) {
+                    console.error('Failed to remove share:', error);
+                }
             }
-        }
+        });
     };
 
     const getStatusBadge = (state: Share['state']) => {
@@ -202,6 +236,17 @@ export default function SharesPage() {
                     </div>
                 )}
             </div>
+
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={confirmAction.isOpen}
+                onClose={() => setConfirmAction(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmAction.onConfirm}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                variant={confirmAction.variant}
+                confirmLabel={confirmAction.confirmLabel}
+            />
         </div>
     );
 }

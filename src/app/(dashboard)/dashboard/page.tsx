@@ -9,6 +9,7 @@ import { getCategories } from '@/services/categories';
 import PromptSetCard from '@/components/prompts/PromptSetCard';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import ShareModal from '@/components/shares/ShareModal';
 import styles from './page.module.css';
 
@@ -22,6 +23,7 @@ export default function DashboardPage() {
     const [shareModalPromptSetId, setShareModalPromptSetId] = useState<string | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; id: string }>({ isOpen: false, id: '' });
 
     // Form state
     const [newTitle, setNewTitle] = useState('');
@@ -73,14 +75,18 @@ export default function DashboardPage() {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (confirm('Are you sure you want to delete this prompt set?')) {
-            try {
-                await deletePromptSet(id);
-                await loadData();
-            } catch (error) {
-                console.error('Failed to delete prompt set:', error);
-            }
+    const handleDelete = (id: string) => {
+        setConfirmDelete({ isOpen: true, id });
+    };
+
+    const confirmDeleteAction = async () => {
+        const id = confirmDelete.id;
+        setConfirmDelete({ isOpen: false, id: '' });
+        try {
+            await deletePromptSet(id);
+            await loadData();
+        } catch (error) {
+            console.error('Failed to delete prompt set:', error);
         }
     };
 
@@ -253,6 +259,16 @@ export default function DashboardPage() {
                     onClose={() => setShareModalPromptSetId(null)}
                 />
             )}
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={confirmDelete.isOpen}
+                onClose={() => setConfirmDelete({ isOpen: false, id: '' })}
+                onConfirm={confirmDeleteAction}
+                title="Delete Prompt Set"
+                message="Are you sure you want to delete this prompt set? This action will remove all associated versions and images. This cannot be undone."
+                variant="danger"
+                confirmLabel="Delete"
+            />
         </div>
     );
 }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { MediaImage } from '@/types';
 import Button from '@/components/ui/Button';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import styles from './MediaGallery.module.css';
 
 interface MediaGalleryProps {
@@ -14,6 +15,13 @@ interface MediaGalleryProps {
 export default function MediaGallery({ images, onDelete, isAdminView = false }: MediaGalleryProps) {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState<{
+        isOpen: boolean;
+        ids: string[];
+    }>({
+        isOpen: false,
+        ids: []
+    });
 
     const toggleSelect = (id: string) => {
         setSelectedIds(prev =>
@@ -22,11 +30,19 @@ export default function MediaGallery({ images, onDelete, isAdminView = false }: 
     };
 
     const handleBulkDelete = () => {
-        if (confirm(`Are you sure you want to delete ${selectedIds.length} images?`)) {
-            selectedIds.forEach(id => onDelete(id));
+        setConfirmDelete({
+            isOpen: true,
+            ids: selectedIds
+        });
+    };
+
+    const confirmDeleteAction = () => {
+        confirmDelete.ids.forEach(id => onDelete(id));
+        if (confirmDelete.ids.length > 1) {
             setSelectedIds([]);
             setIsSelectionMode(false);
         }
+        setConfirmDelete({ isOpen: false, ids: [] });
     };
 
     if (images.length === 0) {
@@ -76,7 +92,10 @@ export default function MediaGallery({ images, onDelete, isAdminView = false }: 
                                     className={styles.deleteBtn}
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        if (confirm('Delete this image from library?')) onDelete(image.id);
+                                        setConfirmDelete({
+                                            isOpen: true,
+                                            ids: [image.id]
+                                        });
                                     }}
                                     title="Delete from library"
                                 >
@@ -104,6 +123,19 @@ export default function MediaGallery({ images, onDelete, isAdminView = false }: 
                     </div>
                 ))}
             </div>
+
+            <ConfirmationModal
+                isOpen={confirmDelete.isOpen}
+                onClose={() => setConfirmDelete({ isOpen: false, ids: [] })}
+                onConfirm={confirmDeleteAction}
+                title="Delete Media"
+                message={confirmDelete.ids.length > 1
+                    ? `Are you sure you want to delete ${confirmDelete.ids.length} images from your library?`
+                    : 'Are you sure you want to delete this image from your library?'
+                }
+                variant="danger"
+                confirmLabel="Delete"
+            />
         </div>
     );
 }

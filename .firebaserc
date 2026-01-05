@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "heidless-firebase"
+  },
+  "targets": {
+    "heidless-firebase": {
+      "hosting": {
+        "app": [
+          "imageprompt-v1-dev"
+        ]
+      }
+    }
+  }
+}

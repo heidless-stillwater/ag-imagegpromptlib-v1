@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { updateUserProfile } from '@/services/auth';
 import { getMediaImages, addMediaImage } from '@/services/media';
 import { generateImage } from '@/services/gemini';
+import { uploadUserAvatar } from '@/services/upload';
 import { MediaImage } from '@/types';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -113,10 +114,20 @@ export default function ProfilePage() {
 
         const reader = new FileReader();
         reader.onloadend = async () => {
-            const url = reader.result as string;
-            setFormData(prev => ({ ...prev, avatarUrl: url }));
-            // Also save to Media library
-            await addMediaImage(url);
+            const base64 = reader.result as string;
+
+            try {
+                // Upload to Firebase Storage first
+                // Use a toast or loading state ideally, but for now we proceed
+                const storageUrl = await uploadUserAvatar(user.id, base64);
+
+                setFormData(prev => ({ ...prev, avatarUrl: storageUrl }));
+                // Also save to Media library with the permanent URL
+                await addMediaImage(storageUrl);
+            } catch (error) {
+                console.error('Failed to upload avatar:', error);
+                setMessage({ type: 'error', text: 'Failed to upload image. Please try again.' });
+            }
         };
         reader.readAsDataURL(file);
     };
@@ -134,9 +145,22 @@ export default function ProfilePage() {
         try {
             const result = await generateImage(avatarPrompt, 'live');
             if (result.success && result.imageUrl) {
-                setFormData(prev => ({ ...prev, avatarUrl: result.imageUrl! }));
-                // Also save to Media library
-                await addMediaImage(result.imageUrl!);
+                try {
+                    // Upload generated base64 to Storage
+                    const storageUrl = await uploadUserAvatar(user.id, result.imageUrl);
+
+                    setFormData(prev => ({ ...prev, avatarUrl: storageUrl }));
+                    // Save to Media library with permanent URL
+                    await addMediaImage(storageUrl);
+                } catch (uploadError) {
+                    console.error('Failed to upload generated avatar:', uploadError);
+                    setFeedback({
+                        isOpen: true,
+                        title: 'Upload Failed',
+                        message: 'Generated image, but failed to save to storage.',
+                        variant: 'danger'
+                    });
+                }
             } else {
                 setFeedback({
                     isOpen: true,

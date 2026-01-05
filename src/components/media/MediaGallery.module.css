@@ -160,7 +160,7 @@
     color: var(--color-text-muted);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .container {
         gap: var(--space-4);
     }

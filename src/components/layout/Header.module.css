@@ -61,9 +61,20 @@
     transition: all var(--transition-fast);
 }
 
-.navLink:hover {
+.navLink:hover,
+.navLink.active {
     color: var(--color-text-primary);
     background: var(--color-bg-tertiary);
+}
+
+.navLink.active {
+    background: var(--color-accent-glow);
+    color: var(--color-accent-primary);
+}
+
+.navLink.active .navIcon {
+    opacity: 1;
+    color: var(--color-accent-primary);
 }
 
 .badge {
@@ -184,7 +195,40 @@
     color: var(--color-error);
 }
 
-@media (max-width: 768px) {
+.desktopOnly {
+    display: block;
+}
+
+.menuToggle {
+    display: none;
+}
+
+.mobileRoleToggle {
+    display: none;
+}
+
+.mobileLogoutBtn {
+    display: none;
+}
+
+.navIcon {
+    opacity: 0.7;
+    transition: opacity var(--transition-fast);
+}
+
+.navLink:hover .navIcon {
+    opacity: 1;
+    color: var(--color-accent-primary);
+}
+
+.navLinkContent {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+}
+
+@media (max-width: 1024px) {
     .container {
         padding: var(--space-3) var(--space-4);
     }
@@ -208,7 +252,7 @@
         flex-direction: column;
         align-items: stretch;
         padding: var(--space-16) var(--space-6) var(--space-6);
-        gap: var(--space-2);
+        gap: var(--space-1);
         transition: right var(--transition-slow);
         z-index: var(--z-modal);
         box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
@@ -225,6 +269,14 @@
         font-size: var(--text-base);
         border-bottom: 1px solid var(--color-border);
         border-radius: 0;
+        display: flex;
+        align-items: center;
+        gap: var(--space-4);
+    }
+
+    .navIcon {
+        color: var(--color-accent-primary);
+        opacity: 1;
     }
 
     .navLink:last-of-type {
@@ -243,6 +295,11 @@
         cursor: pointer;
         z-index: calc(var(--z-modal) + 1);
         position: relative;
+        transition: transform var(--transition-fast);
+    }
+
+    .menuToggle:active {
+        transform: scale(0.9);
     }
 
     .backdrop {
@@ -258,7 +315,7 @@
         display: flex;
         flex-direction: column;
         gap: var(--space-3);
-        margin-top: var(--space-4);
+        margin-top: var(--space-6);
         padding: var(--space-4);
         background: var(--color-bg-tertiary);
         border-radius: var(--radius-lg);
@@ -293,20 +350,4 @@
     .logoutBtn {
         display: none;
     }
-}
-
-.menuToggle {
-    display: none;
-}
-
-.mobileRoleToggle {
-    display: none;
-}
-
-.mobileLogoutBtn {
-    display: none;
-}
-
-.desktopOnly {
-    display: block;
 }

@@ -255,7 +255,7 @@
     margin-top: var(--space-4);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 1024px) {
 
     .categoryItem,
     .userItem {

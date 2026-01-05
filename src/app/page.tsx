@@ -2,17 +2,18 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { loginWithRole } from '@/services/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import Button from '@/components/ui/Button';
 import styles from './page.module.css';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (role: 'admin' | 'member') => {
+  const handleLogin = async (role: 'admin' | 'member') => {
     setIsLoading(true);
-    loginWithRole(role);
+    await login(role);
     router.push('/dashboard');
   };
 

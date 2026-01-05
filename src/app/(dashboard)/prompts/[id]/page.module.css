@@ -431,9 +431,29 @@
     object-fit: contain;
 }
 
+@media (max-width: 1024px) {
+    .content {
+        grid-template-columns: 250px 1fr;
+    }
+}
+
 @media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .headerActions {
+        width: 100%;
+    }
+
+    .headerActions button {
+        flex: 1;
+    }
+
     .content {
         grid-template-columns: 1fr;
+        gap: var(--space-4);
     }
 
     .versionsPanel {
@@ -442,5 +462,25 @@
 
     .detailPanel {
         order: 1;
+        padding: var(--space-4);
+    }
+
+    .versionDetailHeader {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .versionActions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .versionActions button {
+        width: 100%;
+    }
+
+    .imageActions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
     }
 }

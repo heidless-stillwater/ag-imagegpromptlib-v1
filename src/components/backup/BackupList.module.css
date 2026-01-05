@@ -103,3 +103,18 @@
 .empty p {
     color: var(--color-text-muted);
 }
+
+@media (max-width: 768px) {
+
+    .table th,
+    .table td {
+        padding: var(--space-2);
+    }
+
+    .fileName {
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}

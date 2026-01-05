@@ -161,9 +161,19 @@
 
     .filters {
         flex-direction: column;
+        gap: var(--space-2);
     }
 
     .searchBox {
         max-width: none;
+        min-width: 0;
+    }
+
+    .categorySelect {
+        width: 100%;
+    }
+
+    .grid {
+        grid-template-columns: 1fr;
     }
 }

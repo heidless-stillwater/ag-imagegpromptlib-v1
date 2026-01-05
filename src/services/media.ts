@@ -16,6 +16,7 @@ import { MediaImage, PromptSet } from '@/types';
 import { getCurrentUser, isAdmin } from './auth';
 import { generateId } from './storage';
 import { sanitizeData } from '@/lib/firestore';
+import { generateDeterministicId } from '@/lib/utils';
 
 const COLLECTION_NAME = 'media';
 
@@ -50,9 +51,7 @@ export async function addMediaImage(
     const currentUser = await getCurrentUser();
     if (!currentUser) return null;
 
-    // Check if duplicate
-    // Firestore query limit for field values is roughly 1MB, but practical index limits are smaller.
-    // Also, the entire document cannot exceed 1MB.
+    // Firestore document limit is 1MB.
     // If the URL is huge (Base64), we MUST reject it or it will crash the write.
     // 500,000 chars ~ 375KB-500KB depending on encoding, safe buffer.
     if (url.length > 500000) {
@@ -60,17 +59,18 @@ export async function addMediaImage(
         return null;
     }
 
-    if (url.length < 2000) {
-        const colRef = collection(db, COLLECTION_NAME);
-        const q = query(colRef, where('userId', '==', currentUser.id), where('url', '==', url));
-        const snapshot = await getDocs(q);
+    // Generate a deterministic ID based on userId and url
+    // This naturally prevents duplicates regardless of URL length
+    const id = await generateDeterministicId(`${currentUser.id}-${url}`);
 
-        if (!snapshot.empty) {
-            return snapshot.docs[0].data() as MediaImage;
-        }
+    // Check if duplicate using direct ID lookup (more efficient than query)
+    const docRef = doc(db, COLLECTION_NAME, id);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+        return docSnap.data() as MediaImage;
     }
 
-    const id = generateId();
     const newImage: MediaImage = {
         id,
         userId: currentUser.id,
@@ -80,7 +80,7 @@ export async function addMediaImage(
         createdAt: new Date().toISOString(),
     };
 
-    await setDoc(doc(db, COLLECTION_NAME, id), sanitizeData(newImage));
+    await setDoc(docRef, sanitizeData(newImage));
     return newImage;
 }
 
@@ -131,27 +131,39 @@ export async function syncImagesFromVersions(): Promise<{ added: number }> {
     const { getPromptSets } = await import('./promptSets');
     const promptSets = await getPromptSets();
 
-    const existingMedia = await getMediaImages();
-    const existingUrls = new Set(existingMedia.map(m => m.url));
-
     let addedCount = 0;
     const batch = writeBatch(db);
 
     for (const set of promptSets) {
         for (const version of set.versions) {
-            if (version.imageUrl && !existingUrls.has(version.imageUrl)) {
-                const id = generateId();
-                const newImg: MediaImage = {
-                    id,
-                    userId: set.userId,
-                    url: version.imageUrl,
-                    promptSetId: set.id,
-                    versionId: version.id,
-                    createdAt: version.imageGeneratedAt || version.createdAt,
-                };
-                batch.set(doc(db, COLLECTION_NAME, id), sanitizeData(newImg));
-                existingUrls.add(version.imageUrl);
-                addedCount++;
+            if (version.imageUrl) {
+                // Generate deterministic ID
+                const id = await generateDeterministicId(`${set.userId}-${version.imageUrl}`);
+
+                // Since this is a bulk operation, we check existance by trying to get current ones
+                // but actually, with deterministic IDs, we can just use setDoc with merge:true or just setDoc
+                // if we don't mind overwriting metadata for the same URL.
+                // However, we want to know how many were ADDED.
+
+                // Let's use getDoc for each to be sure about added count, 
+                // or just rely on the fact that batch.set will overwrite if it exists.
+                // For a more efficient "added" count, we'd need to fetch existing IDs first.
+
+                const docRef = doc(db, COLLECTION_NAME, id);
+                const docSnap = await getDoc(docRef);
+
+                if (!docSnap.exists()) {
+                    const newImg: MediaImage = {
+                        id,
+                        userId: set.userId,
+                        url: version.imageUrl,
+                        promptSetId: set.id,
+                        versionId: version.id,
+                        createdAt: version.imageGeneratedAt || version.createdAt,
+                    };
+                    batch.set(docRef, sanitizeData(newImg));
+                    addedCount++;
+                }
             }
         }
     }

@@ -12,6 +12,37 @@
     width: 100%;
 }
 
+@media (max-width: 768px) {
+    .main {
+        padding: var(--space-4);
+    }
+}
+
+@media (max-width: 640px) {
+    .header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filters {
+        flex-direction: column;
+        gap: var(--space-2);
+    }
+
+    .searchBox {
+        max-width: none;
+        min-width: 0;
+    }
+
+    .categorySelect {
+        width: 100%;
+    }
+
+    .grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .loading {
     min-height: 100vh;
     display: flex;

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Backup } from '@/types';
 import Button from '@/components/ui/Button';
 import { downloadBackupFile } from '@/services/backup';
@@ -7,8 +8,8 @@ import styles from './BackupList.module.css';
 
 interface BackupListProps {
     backups: Backup[];
-    onDelete: (id: string) => void;
-    onRestore: (backup: Backup) => void;
+    onDelete: (id: string) => Promise<void> | void;
+    onRestore: (backup: Backup) => Promise<void> | void;
     isAdminView?: boolean;
 }
 
@@ -37,30 +38,80 @@ export default function BackupList({ backups, onDelete, onRestore, isAdminView =
                 </thead>
                 <tbody>
                     {backups.map(backup => (
-                        <tr key={backup.id} className={styles.row}>
-                            <td>{new Date(backup.createdAt).toLocaleString()}</td>
-                            <td>
-                                <span className={`${styles.typeBadge} ${styles[backup.type]}`}>
-                                    {backup.type}
-                                </span>
-                            </td>
-                            <td className={styles.fileName}>{backup.fileName}</td>
-                            {isAdminView && <td className={styles.userId}>{backup.userId.slice(0, 8)}...</td>}
-                            <td className={styles.actions}>
-                                <Button size="sm" variant="secondary" onClick={() => downloadBackupFile(backup)}>
-                                    Download
-                                </Button>
-                                <Button size="sm" variant="success" onClick={() => onRestore(backup)}>
-                                    Restore
-                                </Button>
-                                <Button size="sm" variant="danger" onClick={() => onDelete(backup.id)}>
-                                    Delete
-                                </Button>
-                            </td>
-                        </tr>
+                        <BackupRow
+                            key={backup.id}
+                            backup={backup}
+                            onDelete={onDelete}
+                            onRestore={onRestore}
+                            isAdminView={isAdminView}
+                        />
                     ))}
                 </tbody>
             </table>
         </div>
+    );
+}
+
+interface BackupRowProps {
+    backup: Backup;
+    onDelete: (id: string) => Promise<void> | void;
+    onRestore: (backup: Backup) => Promise<void> | void;
+    isAdminView: boolean;
+}
+
+function BackupRow({ backup, onDelete, onRestore, isAdminView }: BackupRowProps) {
+    const [loadingAction, setLoadingAction] = useState<string | null>(null);
+
+    const handleAction = async (action: string, callback: () => Promise<void> | void) => {
+        setLoadingAction(action);
+        try {
+            await callback();
+        } catch (error) {
+            console.error(`Error during ${action}:`, error);
+        } finally {
+            setLoadingAction(null);
+        }
+    };
+
+    return (
+        <tr className={styles.row}>
+            <td>{new Date(backup.createdAt).toLocaleString()}</td>
+            <td>
+                <span className={`${styles.typeBadge} ${styles[backup.type]}`}>
+                    {backup.type}
+                </span>
+            </td>
+            <td className={styles.fileName}>{backup.fileName}</td>
+            {isAdminView && <td className={styles.userId}>{backup.userId.slice(0, 8)}...</td>}
+            <td className={styles.actions}>
+                <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => handleAction('download', () => downloadBackupFile(backup))}
+                    isLoading={loadingAction === 'download'}
+                    disabled={!!loadingAction}
+                >
+                    Download
+                </Button>
+                <Button
+                    size="sm"
+                    variant="success"
+                    onClick={() => handleAction('restore', () => onRestore(backup))}
+                    isLoading={loadingAction === 'restore'}
+                    disabled={!!loadingAction}
+                >
+                    Restore
+                </Button>
+                <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => handleAction('delete', () => onDelete(backup.id))}
+                    isLoading={loadingAction === 'delete'}
+                    disabled={!!loadingAction}
+                >
+                    Delete
+                </Button>
+            </td>
+        </tr>
     );
 }

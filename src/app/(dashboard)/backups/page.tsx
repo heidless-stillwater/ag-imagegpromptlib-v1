@@ -13,7 +13,7 @@ export default function BackupPage() {
     const { user, isAdmin } = useAuth();
     const [backups, setBackups] = useState<Backup[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isProcessing, setIsProcessing] = useState(false);
+    const [processingAction, setProcessingAction] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Modal states
@@ -49,7 +49,7 @@ export default function BackupPage() {
     };
 
     const handleCreateBackup = async (type: Backup['type']) => {
-        setIsProcessing(true);
+        setProcessingAction(`create-${type}`);
         try {
             const result = await createBackup(type);
             if (result) {
@@ -71,7 +71,7 @@ export default function BackupPage() {
                 variant: 'danger'
             });
         } finally {
-            setIsProcessing(false);
+            setProcessingAction(null);
         }
     };
 
@@ -82,6 +82,7 @@ export default function BackupPage() {
     const confirmDeleteAction = async () => {
         const id = confirmDelete.id;
         setConfirmDelete({ isOpen: false, id: '' });
+        setProcessingAction(`delete-${id}`);
         try {
             const success = await deleteBackup(id);
             if (success) {
@@ -89,6 +90,8 @@ export default function BackupPage() {
             }
         } catch (error) {
             console.error('Failed to delete backup:', error);
+        } finally {
+            setProcessingAction(null);
         }
     };
 
@@ -101,7 +104,7 @@ export default function BackupPage() {
         if (!backup) return;
         setConfirmRestore({ isOpen: false });
 
-        setIsProcessing(true);
+        setProcessingAction(`restore-${backup.id}`);
         try {
             const result = await restoreBackup(backup.file);
             setFeedback({
@@ -119,7 +122,7 @@ export default function BackupPage() {
                 variant: 'danger'
             });
         } finally {
-            setIsProcessing(false);
+            setProcessingAction(null);
         }
     };
 
@@ -139,7 +142,7 @@ export default function BackupPage() {
         const content = confirmUpload.content;
         setConfirmUpload({ isOpen: false, content: '' });
 
-        setIsProcessing(true);
+        setProcessingAction('upload');
         try {
             const result = await restoreBackup(content);
             setFeedback({
@@ -157,7 +160,7 @@ export default function BackupPage() {
                 variant: 'danger'
             });
         } finally {
-            setIsProcessing(false);
+            setProcessingAction(null);
             if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
@@ -178,13 +181,28 @@ export default function BackupPage() {
                     <h3>Create Backup</h3>
                     <p>Export your data as a JSON file and store it in your backup collection.</p>
                     <div className={styles.opActions}>
-                        <Button variant="secondary" onClick={() => handleCreateBackup('promptSet')} isLoading={isProcessing}>
+                        <Button
+                            variant="secondary"
+                            onClick={() => handleCreateBackup('promptSet')}
+                            isLoading={processingAction === 'create-promptSet'}
+                            disabled={!!processingAction}
+                        >
                             Prompt Sets
                         </Button>
-                        <Button variant="secondary" onClick={() => handleCreateBackup('media')} isLoading={isProcessing}>
+                        <Button
+                            variant="secondary"
+                            onClick={() => handleCreateBackup('media')}
+                            isLoading={processingAction === 'create-media'}
+                            disabled={!!processingAction}
+                        >
                             Media Library
                         </Button>
-                        <Button variant="primary" onClick={() => handleCreateBackup('all')} isLoading={isProcessing}>
+                        <Button
+                            variant="primary"
+                            onClick={() => handleCreateBackup('all')}
+                            isLoading={processingAction === 'create-all'}
+                            disabled={!!processingAction}
+                        >
                             Save All
                         </Button>
                     </div>
@@ -194,7 +212,12 @@ export default function BackupPage() {
                     <h3>Restore from File</h3>
                     <p>Upload a previously downloaded backup file to restore your data.</p>
                     <div className={styles.opActions}>
-                        <Button variant="secondary" onClick={() => fileInputRef.current?.click()} isLoading={isProcessing}>
+                        <Button
+                            variant="secondary"
+                            onClick={() => fileInputRef.current?.click()}
+                            isLoading={processingAction === 'upload'}
+                            disabled={!!processingAction}
+                        >
                             Upload File
                         </Button>
                         <input
@@ -244,7 +267,7 @@ export default function BackupPage() {
                 message="Restoring will overwrite or merge with existing data. It is highly recommended to create a fresh backup of your current data first. Proceed?"
                 variant="info"
                 confirmLabel="Restore"
-                isLoading={isProcessing}
+                isLoading={!!processingAction}
             />
 
             <ConfirmationModal
@@ -255,7 +278,7 @@ export default function BackupPage() {
                 message="Restoring from an uploaded file will merge with your existing data. Proceed?"
                 variant="info"
                 confirmLabel="Restore"
-                isLoading={isProcessing}
+                isLoading={!!processingAction}
             />
 
             <ConfirmationModal

@@ -6,6 +6,7 @@ import { Backup } from '@/types';
 import { getBackups, createBackup, deleteBackup, restoreBackup } from '@/services/backup';
 import BackupList from '@/components/backup/BackupList';
 import Button from '@/components/ui/Button';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import styles from './page.module.css';
 
 export default function BackupPage() {
@@ -14,6 +15,17 @@ export default function BackupPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Modal states
+    const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; id: string }>({ isOpen: false, id: '' });
+    const [confirmRestore, setConfirmRestore] = useState<{ isOpen: boolean; backup?: Backup }>({ isOpen: false });
+    const [confirmUpload, setConfirmUpload] = useState<{ isOpen: boolean; content: string }>({ isOpen: false, content: '' });
+    const [feedback, setFeedback] = useState<{ isOpen: boolean; title: string; message: string; variant: 'info' | 'success' | 'danger' }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        variant: 'info'
+    });
 
     useEffect(() => {
         if (user) {
@@ -41,19 +53,33 @@ export default function BackupPage() {
             const result = await createBackup(type);
             if (result) {
                 await loadBackups();
-                alert(`Backup of "${type}" created successfully.`);
+                setFeedback({
+                    isOpen: true,
+                    title: 'Backup Created',
+                    message: `Backup of "${type}" created and saved to library.`,
+                    variant: 'success'
+                });
             }
         } catch (error) {
             console.error('Failed to create backup:', error);
-            alert('Failed to create backup.');
+            setFeedback({
+                isOpen: true,
+                title: 'Error',
+                message: 'Failed to create backup.',
+                variant: 'danger'
+            });
         } finally {
             setIsProcessing(false);
         }
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this backup record from the library?')) return;
+        setConfirmDelete({ isOpen: true, id });
+    };
 
+    const confirmDeleteAction = async () => {
+        const id = confirmDelete.id;
+        setConfirmDelete({ isOpen: false, id: '' });
         try {
             const success = await deleteBackup(id);
             if (success) {
@@ -64,16 +90,32 @@ export default function BackupPage() {
         }
     };
 
-    const handleRestore = async (backup: Backup) => {
-        if (!confirm('Proceeding will overwrite or merge with existing data. Highly recommended to create a fresh backup first. Proceed?')) return;
+    const handleRestore = (backup: Backup) => {
+        setConfirmRestore({ isOpen: true, backup });
+    };
+
+    const confirmRestoreAction = async () => {
+        const backup = confirmRestore.backup;
+        if (!backup) return;
+        setConfirmRestore({ isOpen: false });
 
         setIsProcessing(true);
         try {
             const result = await restoreBackup(backup.file);
-            alert(`Restore complete!\nRestored ${result.restoredPromptSets} prompt sets and ${result.restoredMedia} media items.`);
+            setFeedback({
+                isOpen: true,
+                title: 'Restore Complete',
+                message: `Successfully restored ${result.restoredPromptSets} prompt sets and ${result.restoredMedia} media items.`,
+                variant: 'success'
+            });
         } catch (error) {
             console.error('Restore failed:', error);
-            alert('Failed to restore from backup.');
+            setFeedback({
+                isOpen: true,
+                title: 'Restore Failed',
+                message: 'Failed to restore from backup.',
+                variant: 'danger'
+            });
         } finally {
             setIsProcessing(false);
         }
@@ -86,21 +128,36 @@ export default function BackupPage() {
         const reader = new FileReader();
         reader.onload = async (e) => {
             const content = e.target?.result as string;
-            if (!confirm('Restoring from file will merge with existing data. Proceed?')) return;
-
-            setIsProcessing(true);
-            try {
-                const result = await restoreBackup(content);
-                alert(`Restore complete!\nRestored ${result.restoredPromptSets} prompt sets and ${result.restoredMedia} media items.`);
-            } catch (error) {
-                console.error('Restore failed:', error);
-                alert('Invalid backup file format.');
-            } finally {
-                setIsProcessing(false);
-                if (fileInputRef.current) fileInputRef.current.value = '';
-            }
+            setConfirmUpload({ isOpen: true, content });
         };
         reader.readAsText(file);
+    };
+
+    const confirmUploadAction = async () => {
+        const content = confirmUpload.content;
+        setConfirmUpload({ isOpen: false, content: '' });
+
+        setIsProcessing(true);
+        try {
+            const result = await restoreBackup(content);
+            setFeedback({
+                isOpen: true,
+                title: 'Restore Complete',
+                message: `Successfully restored ${result.restoredPromptSets} prompt sets and ${result.restoredMedia} media items.`,
+                variant: 'success'
+            });
+        } catch (error) {
+            console.error('Restore failed:', error);
+            setFeedback({
+                isOpen: true,
+                title: 'Restore Failed',
+                message: 'Invalid backup file format.',
+                variant: 'danger'
+            });
+        } finally {
+            setIsProcessing(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
     };
 
     return (
@@ -165,6 +222,49 @@ export default function BackupPage() {
                     />
                 )}
             </div>
+
+            {/* Modal Dialogs */}
+            <ConfirmationModal
+                isOpen={confirmDelete.isOpen}
+                onClose={() => setConfirmDelete({ isOpen: false, id: '' })}
+                onConfirm={confirmDeleteAction}
+                title="Delete Backup"
+                message="Are you sure you want to delete this backup record from the library? This action is permanent."
+                variant="danger"
+                confirmLabel="Delete"
+            />
+
+            <ConfirmationModal
+                isOpen={confirmRestore.isOpen}
+                onClose={() => setConfirmRestore({ isOpen: false })}
+                onConfirm={confirmRestoreAction}
+                title="Restore Data"
+                message="Restoring will overwrite or merge with existing data. It is highly recommended to create a fresh backup of your current data first. Proceed?"
+                variant="info"
+                confirmLabel="Restore"
+                isLoading={isProcessing}
+            />
+
+            <ConfirmationModal
+                isOpen={confirmUpload.isOpen}
+                onClose={() => setConfirmUpload({ isOpen: false, content: '' })}
+                onConfirm={confirmUploadAction}
+                title="Restore from File"
+                message="Restoring from an uploaded file will merge with your existing data. Proceed?"
+                variant="info"
+                confirmLabel="Restore"
+                isLoading={isProcessing}
+            />
+
+            <ConfirmationModal
+                isOpen={feedback.isOpen}
+                onClose={() => setFeedback(prev => ({ ...prev, isOpen: false }))}
+                title={feedback.title}
+                message={feedback.message}
+                variant={feedback.variant}
+                confirmLabel="Close"
+                cancelLabel=""
+            />
         </div>
     );
 }

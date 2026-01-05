@@ -1,0 +1,29 @@
+.content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+}
+
+.variant_danger {
+    border-left: 4px solid var(--color-error);
+    padding-left: var(--space-4);
+}
+
+.variant_info {
+    border-left: 4px solid var(--color-primary);
+    padding-left: var(--space-4);
+}
+
+.variant_success {
+    border-left: 4px solid #4ade80;
+    padding-left: var(--space-4);
+}

@@ -75,7 +75,13 @@ export default function PromptDetailPage() {
             setAverageRating(avgRating);
             setUserRating(rating?.score || 0);
 
-            if (set.versions.length > 0 && !selectedVersion) {
+            // Refresh selected version data if it exists, otherwise default to latest
+            if (selectedVersion) {
+                const updated = set.versions.find(v => v.id === selectedVersion.id);
+                if (updated) {
+                    setSelectedVersion(updated);
+                }
+            } else if (set.versions.length > 0) {
                 setSelectedVersion(set.versions[set.versions.length - 1]);
             }
         } catch (error) {
@@ -172,6 +178,22 @@ export default function PromptDetailPage() {
             setGenerateError('An unexpected error occurred during generation.');
         } finally {
             setIsGenerating(false);
+        }
+    };
+
+    const handleRemoveImage = async () => {
+        if (!selectedVersion || !promptSet) return;
+        if (!confirm('Are you sure you want to remove this image?')) return;
+
+        try {
+            await updateVersion(promptSet.id, selectedVersion.id, {
+                imageUrl: undefined,
+                imageGeneratedAt: undefined,
+            });
+            await loadData();
+        } catch (error) {
+            console.error('Failed to remove image:', error);
+            alert('Failed to remove image. Please try again.');
         }
     };
 
@@ -288,6 +310,22 @@ export default function PromptDetailPage() {
                                             className={styles.generatedImage}
                                             onClick={() => setIsImageModalOpen(true)}
                                         />
+                                        <div className={styles.imageActions}>
+                                            <Button
+                                                size="sm"
+                                                variant="secondary"
+                                                onClick={() => handlePrepareGenerate(selectedVersion)}
+                                            >
+                                                Replace
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="danger"
+                                                onClick={handleRemoveImage}
+                                            >
+                                                Remove
+                                            </Button>
+                                        </div>
                                         <span className={styles.imageCaption}>
                                             Generated {selectedVersion.imageGeneratedAt
                                                 ? new Date(selectedVersion.imageGeneratedAt).toLocaleString()

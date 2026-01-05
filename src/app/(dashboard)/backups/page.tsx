@@ -20,11 +20,12 @@ export default function BackupPage() {
     const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; id: string }>({ isOpen: false, id: '' });
     const [confirmRestore, setConfirmRestore] = useState<{ isOpen: boolean; backup?: Backup }>({ isOpen: false });
     const [confirmUpload, setConfirmUpload] = useState<{ isOpen: boolean; content: string }>({ isOpen: false, content: '' });
-    const [feedback, setFeedback] = useState<{ isOpen: boolean; title: string; message: string; variant: 'info' | 'success' | 'danger' }>({
+    const [feedback, setFeedback] = useState<{ isOpen: boolean; title: string; message: string; variant: 'info' | 'success' | 'danger'; confirmLabel?: string }>({
         isOpen: false,
         title: '',
         message: '',
-        variant: 'info'
+        variant: 'info',
+        confirmLabel: 'Got It..'
     });
 
     useEffect(() => {
@@ -57,7 +58,8 @@ export default function BackupPage() {
                     isOpen: true,
                     title: 'Backup Created',
                     message: `Backup of "${type}" created and saved to library.`,
-                    variant: 'success'
+                    variant: 'success',
+                    confirmLabel: 'Got It..'
                 });
             }
         } catch (error) {
@@ -259,10 +261,11 @@ export default function BackupPage() {
             <ConfirmationModal
                 isOpen={feedback.isOpen}
                 onClose={() => setFeedback(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={() => setFeedback(prev => ({ ...prev, isOpen: false }))}
                 title={feedback.title}
                 message={feedback.message}
                 variant={feedback.variant}
-                confirmLabel="Close"
+                confirmLabel={feedback.confirmLabel || "Got It.."}
                 cancelLabel=""
             />
         </div>

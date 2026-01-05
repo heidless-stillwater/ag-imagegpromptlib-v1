@@ -45,7 +45,8 @@ export async function createBackup(type: Backup['type']): Promise<Backup | null>
 
     const jsonString = JSON.stringify(backupData);
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const fileName = `backup-${type}-${timestamp}.json`;
+    const userPrefix = (currentUser.username || currentUser.displayName || 'user').toLowerCase().replace(/\s+/g, '-');
+    const fileName = `${userPrefix}-backup-${type}-${timestamp}.json`;
 
     const newBackup: Backup = {
         id: generateId(),

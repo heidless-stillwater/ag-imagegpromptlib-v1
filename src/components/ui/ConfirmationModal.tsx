@@ -38,16 +38,18 @@ export default function ConfirmationModal({
                 <p>{message}</p>
 
                 <div className={styles.actions}>
-                    <Button
-                        variant="secondary"
-                        onClick={onClose}
-                        disabled={isLoading}
-                    >
-                        {cancelLabel}
-                    </Button>
+                    {cancelLabel && (
+                        <Button
+                            variant="secondary"
+                            onClick={onClose}
+                            disabled={isLoading}
+                        >
+                            {cancelLabel}
+                        </Button>
+                    )}
                     {onConfirm && (
                         <Button
-                            variant={variant === 'danger' ? 'primary' : 'primary'}
+                            variant={variant === 'info' ? 'primary' : variant}
                             onClick={onConfirm}
                             isLoading={isLoading}
                         >

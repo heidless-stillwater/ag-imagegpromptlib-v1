@@ -1,6 +1,7 @@
 'use client';
 
-import { PromptSet } from '@/types';
+import { useState, useEffect } from 'react';
+import { PromptSet, Category } from '@/types';
 import { getAverageRating } from '@/services/ratings';
 import { getCategoryById } from '@/services/categories';
 import StarRating from '@/components/ratings/StarRating';
@@ -23,12 +24,21 @@ export default function PromptSetCard({
     onShare,
     showActions = true,
 }: PromptSetCardProps) {
-    const { average, count } = getAverageRating(promptSet.id);
-    const category = promptSet.categoryId ? getCategoryById(promptSet.categoryId) : null;
-    const latestVersion = promptSet.versions[promptSet.versions.length - 1];
-    const hasImage = promptSet.versions.some(v => v.imageUrl);
+    const [rating, setRating] = useState({ average: 0, count: 0 });
+    const [category, setCategory] = useState<Category | null>(null);
 
-    // Get first image from versions
+    useEffect(() => {
+        const loadMetadata = async () => {
+            const [avgRating, cat] = await Promise.all([
+                getAverageRating(promptSet.id),
+                promptSet.categoryId ? getCategoryById(promptSet.categoryId) : Promise.resolve(null)
+            ]);
+            setRating(avgRating);
+            setCategory(cat);
+        };
+        loadMetadata();
+    }, [promptSet.id, promptSet.categoryId]);
+
     const previewImage = promptSet.versions.find(v => v.imageUrl)?.imageUrl;
 
     return (
@@ -64,10 +74,10 @@ export default function PromptSetCard({
                     </span>
 
                     <StarRating
-                        value={average}
+                        value={rating.average}
                         readonly
                         size="sm"
-                        count={count}
+                        count={rating.count}
                     />
                 </div>
 

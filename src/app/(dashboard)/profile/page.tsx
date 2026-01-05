@@ -32,6 +32,7 @@ export default function ProfilePage() {
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
     const [mediaImages, setMediaImages] = useState<MediaImage[]>([]);
     const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
+    const [needsGenConfirmation, setNeedsGenConfirmation] = useState(false);
     const [avatarPrompt, setAvatarPrompt] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -110,6 +111,13 @@ export default function ProfilePage() {
 
     const handleGenerateAvatar = async () => {
         if (!avatarPrompt.trim()) return;
+
+        if (!needsGenConfirmation) {
+            setNeedsGenConfirmation(true);
+            return;
+        }
+
+        setNeedsGenConfirmation(false);
         setIsGeneratingAvatar(true);
         try {
             const result = await generateImage(avatarPrompt, 'live');
@@ -169,7 +177,10 @@ export default function ProfilePage() {
                                         type="text"
                                         placeholder="Describe your avatar..."
                                         value={avatarPrompt}
-                                        onChange={(e) => setAvatarPrompt(e.target.value)}
+                                        onChange={(e) => {
+                                            setAvatarPrompt(e.target.value);
+                                            setNeedsGenConfirmation(false);
+                                        }}
                                         className={styles.miniInput}
                                     />
                                     <Button
@@ -177,9 +188,20 @@ export default function ProfilePage() {
                                         onClick={handleGenerateAvatar}
                                         isLoading={isGeneratingAvatar}
                                         disabled={!avatarPrompt.trim()}
+                                        variant={needsGenConfirmation ? 'primary' : 'secondary'}
                                     >
-                                        Generate
+                                        {needsGenConfirmation ? 'Confirm Submission' : 'Generate'}
                                     </Button>
+                                    {needsGenConfirmation && (
+                                        <Button
+                                            size="sm"
+                                            variant="secondary"
+                                            onClick={() => setNeedsGenConfirmation(false)}
+                                            disabled={isGeneratingAvatar}
+                                        >
+                                            Cancel
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
 

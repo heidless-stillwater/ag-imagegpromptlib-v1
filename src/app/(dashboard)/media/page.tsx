@@ -76,21 +76,26 @@ export default function MediaPage() {
         setIsSyncing(true);
         try {
             const result = await syncImagesFromVersions();
-            if (result.added > 0) {
-                setFeedback({
-                    isOpen: true,
-                    title: 'Sync Complete',
-                    message: `Successfully synced ${result.added} new images from your versions.`,
-                    variant: 'success'
-                });
-                await fetchData();
+            let message = '';
+            if (result.added > 0 && result.cleaned > 0) {
+                message = `Successfully added ${result.added} new images and removed ${result.cleaned} duplicates.`;
+            } else if (result.added > 0) {
+                message = `Successfully added ${result.added} new images.`;
+            } else if (result.cleaned > 0) {
+                message = `Successfully cleaned up ${result.cleaned} duplicate images.`;
             } else {
-                setFeedback({
-                    isOpen: true,
-                    title: 'Sync Result',
-                    message: 'All images are already in your library.',
-                    variant: 'info'
-                });
+                message = 'All images are already in your library and deduplicated.';
+            }
+
+            setFeedback({
+                isOpen: true,
+                title: 'Sync Complete',
+                message,
+                variant: result.added > 0 || result.cleaned > 0 ? 'success' : 'info'
+            });
+
+            if (result.added > 0 || result.cleaned > 0) {
+                await fetchData();
             }
         } catch (error) {
             console.error('Sync failed:', error);

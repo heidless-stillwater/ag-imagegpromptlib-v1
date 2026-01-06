@@ -21,6 +21,29 @@ import { generateDeterministicId } from '@/lib/utils';
 const COLLECTION_NAME = 'media';
 
 /**
+ * Normalizes a URL for deduplication by removing tokens and trailing slashes.
+ */
+function normalizeMediaUrl(url: string): string {
+    if (!url) return '';
+    try {
+        const urlObj = new URL(url);
+        // Aggressive: Remove ALL query params for storage hosts to ensure match
+        if (urlObj.hostname.includes('firebasestorage') || urlObj.hostname.includes('googleapis')) {
+            urlObj.search = '';
+        }
+        let normalized = urlObj.toString();
+        // Remove trailing slash and decode to ensure encoding differences don't break matching
+        normalized = decodeURIComponent(normalized);
+        if (normalized.endsWith('/')) {
+            normalized = normalized.slice(0, -1);
+        }
+        return normalized;
+    } catch (e) {
+        return url.trim();
+    }
+}
+
+/**
  * Get all media images for current user
  */
 export async function getMediaImages(): Promise<MediaImage[]> {
@@ -60,9 +83,10 @@ export async function addMediaImage(
         return null;
     }
 
-    // Generate a deterministic ID based on userId and url
-    // This naturally prevents duplicates regardless of URL length
-    const id = await generateDeterministicId(`${currentUser.id}-${url}`);
+    // Generate a deterministic ID based on userId and normalized url
+    // This naturally prevents duplicates regardless of URL tokens or formatting
+    const normalizedUrl = normalizeMediaUrl(url);
+    const id = await generateDeterministicId(`${currentUser.id}-${normalizedUrl}`);
 
     // Check if duplicate using direct ID lookup (more efficient than query)
     const docRef = doc(db, COLLECTION_NAME, id);
@@ -92,7 +116,8 @@ export async function checkMediaExists(url: string): Promise<boolean> {
     const currentUser = await getCurrentUser();
     if (!currentUser) return false;
 
-    const id = await generateDeterministicId(`${currentUser.id}-${url}`);
+    const normalizedUrl = normalizeMediaUrl(url);
+    const id = await generateDeterministicId(`${currentUser.id}-${normalizedUrl}`);
     const docRef = doc(db, COLLECTION_NAME, id);
     const docSnap = await getDoc(docRef);
 
@@ -134,15 +159,37 @@ export async function deleteMediaImages(ids: string[]): Promise<boolean> {
 /**
  * Sync from versions
  */
-export async function syncImagesFromVersions(): Promise<{ added: number }> {
+export async function syncImagesFromVersions(): Promise<{ added: number; cleaned: number }> {
     const currentUser = await getCurrentUser();
-    if (!currentUser) return { added: 0 };
+    if (!currentUser) return { added: 0, cleaned: 0 };
 
-    // This is a bit complex in Firestore because we can't easily query all versions across all sets 
-    // without a separate versions collection. 
-    // For now, we fetch the sets and do it in memory, which is fine for moderate data.
+    // Fetch current media to identify duplicates or missing items
+    const allMedia = await getMediaImages();
+    const existingUrls = new Map<string, string>(); // normalized_url -> id
+    const duplicatesToDelete: string[] = [];
 
-    // We import directly to avoid circular dependency
+    // Identify duplicates in existing media using normalized URLs
+    allMedia.forEach(img => {
+        const norm = normalizeMediaUrl(img.url);
+        if (existingUrls.has(norm)) {
+            const firstId = existingUrls.get(norm)!;
+
+            // Prefer deterministic IDs (64 chars)
+            if (img.id.length !== 64 && firstId.length === 64) {
+                duplicatesToDelete.push(img.id);
+            } else if (img.id.length === 64 && firstId.length !== 64) {
+                duplicatesToDelete.push(firstId);
+                existingUrls.set(norm, img.id);
+            } else {
+                // Both same type, pick the first one and delete the rest
+                duplicatesToDelete.push(img.id);
+            }
+        } else {
+            existingUrls.set(norm, img.id);
+        }
+    });
+
+    // Fetch sets to find new images
     const { getPromptSets } = await import('./promptSets');
     const promptSets = await getPromptSets();
 
@@ -152,22 +199,12 @@ export async function syncImagesFromVersions(): Promise<{ added: number }> {
     for (const set of promptSets) {
         for (const version of set.versions) {
             if (version.imageUrl) {
-                // Generate deterministic ID
-                const id = await generateDeterministicId(`${set.userId}-${version.imageUrl}`);
+                const norm = normalizeMediaUrl(version.imageUrl);
+                if (!existingUrls.has(norm)) {
+                    // Always use current user's ID for normalization consistency in their library
+                    const id = await generateDeterministicId(`${currentUser.id}-${norm}`);
+                    const docRef = doc(db, COLLECTION_NAME, id);
 
-                // Since this is a bulk operation, we check existance by trying to get current ones
-                // but actually, with deterministic IDs, we can just use setDoc with merge:true or just setDoc
-                // if we don't mind overwriting metadata for the same URL.
-                // However, we want to know how many were ADDED.
-
-                // Let's use getDoc for each to be sure about added count, 
-                // or just rely on the fact that batch.set will overwrite if it exists.
-                // For a more efficient "added" count, we'd need to fetch existing IDs first.
-
-                const docRef = doc(db, COLLECTION_NAME, id);
-                const docSnap = await getDoc(docRef);
-
-                if (!docSnap.exists()) {
                     const newImg: MediaImage = {
                         id,
                         userId: set.userId,
@@ -177,15 +214,21 @@ export async function syncImagesFromVersions(): Promise<{ added: number }> {
                         createdAt: version.imageGeneratedAt || version.createdAt,
                     };
                     batch.set(docRef, sanitizeData(newImg));
+                    existingUrls.set(version.imageUrl, id);
                     addedCount++;
                 }
             }
         }
     }
 
-    if (addedCount > 0) {
+    // Add deletions to batch
+    duplicatesToDelete.forEach(id => {
+        batch.delete(doc(db, COLLECTION_NAME, id));
+    });
+
+    if (addedCount > 0 || duplicatesToDelete.length > 0) {
         await batch.commit();
     }
 
-    return { added: addedCount };
+    return { added: addedCount, cleaned: duplicatesToDelete.length };
 }

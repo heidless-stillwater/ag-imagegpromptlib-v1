@@ -214,3 +214,9 @@
         padding: var(--space-2);
     }
 }
+
+.lightboxImage {
+    width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+}

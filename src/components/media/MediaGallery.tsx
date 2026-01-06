@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { MediaImage } from '@/types';
 import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import styles from './MediaGallery.module.css';
 
@@ -24,6 +25,15 @@ export default function MediaGallery({ images, onDelete, onDownload, isAdminView
         isOpen: false,
         ids: []
     });
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+    const handleImageClick = (image: MediaImage) => {
+        if (isSelectionMode) {
+            toggleSelect(image.id);
+        } else {
+            setPreviewUrl(image.url);
+        }
+    };
 
     const toggleSelect = (id: string) => {
         setSelectedIds(prev =>
@@ -98,7 +108,7 @@ export default function MediaGallery({ images, onDelete, onDownload, isAdminView
                                         <div
                                             key={image.id}
                                             className={`${styles.card} ${selectedIds.includes(image.id) ? styles.selected : ''}`}
-                                            onClick={() => isSelectionMode && toggleSelect(image.id)}
+                                            onClick={() => handleImageClick(image)}
                                         >
                                             <div className={styles.imageWrapper}>
                                                 <img src={image.url} alt="Media" className={styles.image} />
@@ -148,7 +158,7 @@ export default function MediaGallery({ images, onDelete, onDownload, isAdminView
                             <div
                                 key={image.id}
                                 className={`${styles.card} ${selectedIds.includes(image.id) ? styles.selected : ''}`}
-                                onClick={() => isSelectionMode && toggleSelect(image.id)}
+                                onClick={() => handleImageClick(image)}
                             >
                                 <div className={styles.imageWrapper}>
                                     <img src={image.url} alt="Media" className={styles.image} />
@@ -204,6 +214,12 @@ export default function MediaGallery({ images, onDelete, onDownload, isAdminView
                 variant="danger"
                 confirmLabel="Delete"
             />
+
+            <Modal isOpen={!!previewUrl} onClose={() => setPreviewUrl(null)} size="lg">
+                {previewUrl && (
+                    <img src={previewUrl} alt="Preview" className={styles.lightboxImage} />
+                )}
+            </Modal>
         </div >
     );
 }

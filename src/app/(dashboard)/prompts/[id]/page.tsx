@@ -292,6 +292,18 @@ export default function PromptDetailPage() {
 
     const category = categories.find(c => c.id === promptSet.categoryId);
 
+    const handleOpenAddVersionModal = () => {
+        if (promptSet && promptSet.versions.length > 0) {
+            // Prefill with the latest version's text
+            const latestVersion = promptSet.versions[promptSet.versions.length - 1];
+            setNewVersionPrompt(latestVersion.promptText);
+        } else {
+            setNewVersionPrompt('');
+        }
+        setNewVersionNotes('');
+        setIsVersionModalOpen(true);
+    };
+
     return (
         <div className={styles.container}>
             <div className={styles.header}>
@@ -331,7 +343,7 @@ export default function PromptDetailPage() {
                 <div className={styles.versionsPanel}>
                     <div className={styles.panelHeader}>
                         <h2>Versions</h2>
-                        <Button size="sm" onClick={() => setIsVersionModalOpen(true)}>+ Add</Button>
+                        <Button size="sm" onClick={handleOpenAddVersionModal}>+ Add</Button>
                     </div>
 
                     <div className={styles.versionsList}>

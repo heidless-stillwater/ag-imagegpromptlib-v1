@@ -490,7 +490,12 @@
     }
 
     .imageActions {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .imageActions button {
+        flex: 1;
+        min-width: 140px;
     }
 }

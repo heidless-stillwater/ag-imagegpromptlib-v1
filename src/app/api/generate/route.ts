@@ -61,8 +61,10 @@ export async function POST(request: NextRequest) {
         });
 
         // Create an enhanced prompt for image generation
+        // We add a unique timestamp to ensure a "fresh" interpretation even for identical prompts
+        const seed = Date.now();
         const imagePrompt = `Generate a detailed, high-quality image based on this description: ${prompt}. 
-    Make it visually stunning with rich colors and professional composition.`;
+    Make it visually stunning with rich colors and professional composition. [variation_id: ${seed}]`;
 
         const result = await model.generateContent(imagePrompt);
         const response = result.response;

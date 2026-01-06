@@ -8,6 +8,7 @@ import { getPromptSetById, updatePromptSet, addVersion, updateVersion, deleteVer
 import { getCategories } from '@/services/categories';
 import { getAverageRating, ratePromptSet, getUserRating } from '@/services/ratings';
 import { generateImage, checkCache } from '@/services/gemini';
+import { addMediaImage, checkMediaExists } from '@/services/media';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
 import Button from '@/components/ui/Button';
@@ -46,6 +47,7 @@ export default function PromptDetailPage() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [generateError, setGenerateError] = useState('');
     const [cachedImage, setCachedImage] = useState<string | null>(null);
+    const [isBypassingCache, setIsBypassingCache] = useState(false);
 
     // Rating state
     const [averageRating, setAverageRating] = useState({ average: 0, count: 0 });
@@ -186,6 +188,7 @@ export default function PromptDetailPage() {
         // Check cache first
         const cached = await checkCache(version.promptText);
         setCachedImage(cached);
+        setIsBypassingCache(false);
         setIsGenerateModalOpen(true);
     };
 
@@ -217,7 +220,7 @@ export default function PromptDetailPage() {
         const isTest = mode === 'test';
 
         try {
-            const result = await generateImage(selectedVersion.promptText, mode);
+            const result = await generateImage(selectedVersion.promptText, mode, isBypassingCache);
 
             if (result.success) {
                 if (isTest) {
@@ -280,6 +283,49 @@ export default function PromptDetailPage() {
                 }
             }
         });
+    };
+
+    const handleSaveToMedia = async (force: boolean = false) => {
+        if (!selectedVersion || !promptSet || !selectedVersion.imageUrl) return;
+
+        try {
+            if (!force) {
+                const exists = await checkMediaExists(selectedVersion.imageUrl);
+                if (exists) {
+                    setConfirmAction({
+                        isOpen: true,
+                        title: 'Image Already in Media',
+                        message: 'This image is already in your media library. Do you want to replace the existing entry with updated metadata?',
+                        variant: 'info',
+                        confirmLabel: 'Replace',
+                        onConfirm: () => handleSaveToMedia(true)
+                    });
+                    return;
+                }
+            }
+
+            // Perform save
+            await addMediaImage(selectedVersion.imageUrl, {
+                promptSetId: promptSet.id,
+                versionId: selectedVersion.id
+            }, force);
+
+            setConfirmAction(prev => ({ ...prev, isOpen: false }));
+            setFeedback({
+                isOpen: true,
+                title: 'Success',
+                message: 'Image saved to media library.',
+                variant: 'success'
+            });
+        } catch (error) {
+            console.error('Failed to save to media:', error);
+            setFeedback({
+                isOpen: true,
+                title: 'Error',
+                message: 'Failed to save image to media library.',
+                variant: 'danger'
+            });
+        }
     };
 
     if (!promptSet) {
@@ -411,16 +457,23 @@ export default function PromptDetailPage() {
                                             <Button
                                                 size="sm"
                                                 variant="secondary"
+                                                onClick={() => handleSaveToMedia()}
+                                            >
+                                                💾 Save to Media
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="secondary"
                                                 onClick={() => handlePrepareGenerate(selectedVersion)}
                                             >
-                                                Replace
+                                                Replace Image
                                             </Button>
                                             <Button
                                                 size="sm"
                                                 variant="danger"
                                                 onClick={handleRemoveImage}
                                             >
-                                                Remove
+                                                Remove Image
                                             </Button>
                                         </div>
                                         <span className={styles.imageCaption}>
@@ -533,6 +586,10 @@ export default function PromptDetailPage() {
                             </div>
                             <img src={cachedImage} alt="Cached" className={styles.previewImage} />
                             <div className={styles.formActions}>
+                                <Button variant="secondary" onClick={() => {
+                                    setCachedImage(null);
+                                    setIsBypassingCache(true);
+                                }}>Generate New</Button>
                                 <Button variant="secondary" onClick={() => setIsGenerateModalOpen(false)}>Cancel</Button>
                                 <Button onClick={async () => {
                                     if (selectedVersion && promptSet) {

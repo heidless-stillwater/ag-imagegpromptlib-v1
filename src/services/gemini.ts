@@ -150,9 +150,13 @@ export type GenerationMode = 'unsplash' | 'test' | 'live';
  * @param prompt The image prompt
  * @param mode The generation mode: 'unsplash' (placeholder), 'test' (connectivity), 'live' (actual generation)
  */
-export async function generateImage(prompt: string, mode: GenerationMode = 'live'): Promise<GenerationResult> {
+export async function generateImage(
+    prompt: string,
+    mode: GenerationMode = 'live',
+    bypassCache: boolean = false
+): Promise<GenerationResult> {
     // For 'live' mode, first check cache
-    if (mode === 'live') {
+    if (mode === 'live' && !bypassCache) {
         const cachedImage = await checkCache(prompt);
         if (cachedImage) {
             return {

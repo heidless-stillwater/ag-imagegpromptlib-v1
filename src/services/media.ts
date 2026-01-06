@@ -46,7 +46,8 @@ export async function getMediaImages(): Promise<MediaImage[]> {
  */
 export async function addMediaImage(
     url: string,
-    metadata?: { promptSetId?: string; versionId?: string }
+    metadata?: { promptSetId?: string; versionId?: string },
+    overwrite: boolean = false
 ): Promise<MediaImage | null> {
     const currentUser = await getCurrentUser();
     if (!currentUser) return null;
@@ -67,7 +68,7 @@ export async function addMediaImage(
     const docRef = doc(db, COLLECTION_NAME, id);
     const docSnap = await getDoc(docRef);
 
-    if (docSnap.exists()) {
+    if (docSnap.exists() && !overwrite) {
         return docSnap.data() as MediaImage;
     }
 
@@ -82,6 +83,20 @@ export async function addMediaImage(
 
     await setDoc(docRef, sanitizeData(newImage));
     return newImage;
+}
+
+/**
+ * Check if an image already exists in media
+ */
+export async function checkMediaExists(url: string): Promise<boolean> {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) return false;
+
+    const id = await generateDeterministicId(`${currentUser.id}-${url}`);
+    const docRef = doc(db, COLLECTION_NAME, id);
+    const docSnap = await getDoc(docRef);
+
+    return docSnap.exists();
 }
 
 /**

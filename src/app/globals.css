@@ -109,6 +109,8 @@
 html {
   font-size: 16px;
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  /* Prevent horizontal scroll for off-screen menu */
 }
 
 body {
@@ -119,6 +121,8 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  /* Prevent horizontal scroll for off-screen menu */
 }
 
 /* Background Glow Effect */

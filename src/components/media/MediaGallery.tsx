@@ -41,6 +41,25 @@ export default function MediaGallery({ images, onDelete, onDownload, isAdminView
         );
     };
 
+    const handleSelectAll = () => {
+        if (selectedIds.length === images.length) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(images.map(img => img.id));
+        }
+    };
+
+    const handleSelectGroup = (groupImages: MediaImage[]) => {
+        const groupIds = groupImages.map(img => img.id);
+        const allSelected = groupIds.every(id => selectedIds.includes(id));
+
+        if (allSelected) {
+            setSelectedIds(prev => prev.filter(id => !groupIds.includes(id)));
+        } else {
+            setSelectedIds(prev => [...new Set([...prev, ...groupIds])]);
+        }
+    };
+
     const handleBulkDelete = () => {
         setConfirmDelete({
             isOpen: true,
@@ -74,6 +93,9 @@ export default function MediaGallery({ images, onDelete, onDownload, isAdminView
                     {isSelectionMode ? (
                         <>
                             <span>{selectedIds.length} selected</span>
+                            <Button size="sm" variant="secondary" onClick={handleSelectAll}>
+                                {selectedIds.length === images.length ? 'Deselect All' : 'Select All'}
+                            </Button>
                             <Button size="sm" variant="secondary" onClick={() => { setIsSelectionMode(false); setSelectedIds([]); }}>
                                 Cancel
                             </Button>
@@ -100,8 +122,15 @@ export default function MediaGallery({ images, onDelete, onDownload, isAdminView
                         {groups.map((group, index) => (
                             <div key={index} className={styles.section}>
                                 <div className={styles.sectionHeader}>
-                                    <h3 className={styles.sectionTitle}>{group.title}</h3>
-                                    <span className={styles.sectionCount}>{group.images.length}</span>
+                                    <div className={styles.sectionTitleContainer}>
+                                        <h3 className={styles.sectionTitle}>{group.title}</h3>
+                                        <span className={styles.sectionCount}>{group.images.length}</span>
+                                    </div>
+                                    {isSelectionMode && (
+                                        <Button size="sm" variant="ghost" onClick={() => handleSelectGroup(group.images)}>
+                                            {group.images.every(img => selectedIds.includes(img.id)) ? 'Deselect Group' : 'Select Group'}
+                                        </Button>
+                                    )}
                                 </div>
                                 <div className={styles.grid}>
                                     {group.images.map(image => (

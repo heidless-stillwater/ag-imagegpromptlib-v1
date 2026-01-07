@@ -14,6 +14,7 @@ import { db } from '@/lib/firebase';
 import { Share, PromptSet, Notification } from '@/types';
 import { getCurrentUser, getUserById, isAdmin } from './auth';
 import { getPromptSetById } from './promptSets';
+import { addMediaImage } from './media';
 import { generateId } from './storage';
 import { createNotification } from './notifications';
 import { sanitizeData } from '@/lib/firestore';
@@ -141,6 +142,16 @@ export async function acceptShare(shareId: string): Promise<PromptSet | null> {
 
     // Add to prompt sets
     await setDoc(doc(db, 'promptSets', newSetId), sanitizeData(newPromptSet));
+
+    // Add images to user's media library
+    for (const version of newVersions) {
+        if (version.imageUrl) {
+            await addMediaImage(version.imageUrl, {
+                promptSetId: newSetId,
+                versionId: version.id
+            });
+        }
+    }
 
     // Update share state
     await updateDoc(doc(db, COLLECTION_NAME, shareId), sanitizeData({

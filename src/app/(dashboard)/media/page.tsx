@@ -9,6 +9,8 @@ import { downloadFilesSequentially } from '@/utils/download';
 import MediaGallery from '@/components/media/MediaGallery';
 import Button from '@/components/ui/Button';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
+import RestoreConflictModal from '@/components/media/RestoreConflictModal';
+import { exportMediaZip, restoreMediaFromZip, Resolution } from '@/services/zip';
 import styles from './page.module.css';
 
 export default function MediaPage() {
@@ -18,7 +20,16 @@ export default function MediaPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
+    const [isBackingUp, setIsBackingUp] = useState(false);
+    const [isRestoring, setIsRestoring] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'grouped'>('grid');
+
+    // Conflict resolution state
+    const [conflict, setConflict] = useState<{
+        filename: string;
+        previewUrl?: string;
+        resolve: (res: Resolution) => void;
+    } | null>(null);
     const [feedback, setFeedback] = useState<{
         isOpen: boolean;
         title: string;
@@ -148,6 +159,74 @@ export default function MediaPage() {
         }
     };
 
+    const handleBackupZip = async () => {
+        setIsBackingUp(true);
+        try {
+            const blob = await exportMediaZip(images);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `media-backup-${new Date().toISOString().split('T')[0]}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            setFeedback({
+                isOpen: true,
+                title: 'Backup Created',
+                message: 'Successfully exported compressed media library.',
+                variant: 'success'
+            });
+        } catch (error) {
+            console.error('Backup failed:', error);
+            setFeedback({
+                isOpen: true,
+                title: 'Backup Failed',
+                message: 'Failed to create compressed backup.',
+                variant: 'danger'
+            });
+        } finally {
+            setIsBackingUp(false);
+        }
+    };
+
+    const handleRestoreZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsRestoring(true);
+        try {
+            const result = await restoreMediaFromZip(file, async (filename, previewUrl) => {
+                return new Promise<Resolution>((resolve) => {
+                    setConflict({ filename, previewUrl, resolve });
+                });
+            });
+
+            setFeedback({
+                isOpen: true,
+                title: 'Restore Complete',
+                message: `Successfully restored ${result.restored} images. (Skipped ${result.skipped})`,
+                variant: 'success'
+            });
+
+            await fetchData();
+        } catch (error: any) {
+            console.error('Restore failed:', error);
+            setFeedback({
+                isOpen: true,
+                title: 'Restore Failed',
+                message: error.message || 'Failed to restore media from zip.',
+                variant: 'danger'
+            });
+        } finally {
+            setIsRestoring(false);
+            setConflict(null);
+            // Reset input
+            e.target.value = '';
+        }
+    };
+
     const groupedImages = useMemo(() => {
         if (viewMode !== 'grouped') return undefined;
 
@@ -221,6 +300,33 @@ export default function MediaPage() {
                     >
                         Sync
                     </Button>
+
+                    <Button
+                        variant="secondary"
+                        onClick={handleBackupZip}
+                        isLoading={isBackingUp}
+                        disabled={images.length === 0}
+                        title="Download compressed ZIP of all images"
+                    >
+                        Backup (ZIP)
+                    </Button>
+
+                    <div className={styles.fileInputWrapper}>
+                        <Button
+                            variant="primary"
+                            isLoading={isRestoring}
+                            title="Upload ZIP to restore media library"
+                        >
+                            Restore (ZIP)
+                        </Button>
+                        <input
+                            type="file"
+                            accept=".zip"
+                            onChange={handleRestoreZip}
+                            className={styles.fileInput}
+                        />
+                    </div>
+
                     <Button
                         variant="secondary"
                         onClick={() => handleDownload()} // Download all
@@ -250,6 +356,17 @@ export default function MediaPage() {
                     />
                 )
             }
+
+            {conflict && (
+                <RestoreConflictModal
+                    filename={conflict.filename}
+                    previewUrl={conflict.previewUrl}
+                    onResolve={(res) => {
+                        conflict.resolve(res);
+                        setConflict(null);
+                    }}
+                />
+            )}
 
             <ConfirmationModal
                 isOpen={feedback.isOpen}

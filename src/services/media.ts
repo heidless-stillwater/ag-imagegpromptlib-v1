@@ -23,7 +23,7 @@ const COLLECTION_NAME = 'media';
 /**
  * Normalizes a URL for deduplication by removing tokens and trailing slashes.
  */
-function normalizeMediaUrl(url: string): string {
+export function normalizeMediaUrl(url: string): string {
     if (!url) return '';
     try {
         const urlObj = new URL(url);
@@ -121,6 +121,15 @@ export async function checkMediaExists(url: string): Promise<boolean> {
     const docRef = doc(db, COLLECTION_NAME, id);
     const docSnap = await getDoc(docRef);
 
+    return docSnap.exists();
+}
+
+/**
+ * Check if a media image ID exists
+ */
+export async function checkMediaExistsById(id: string): Promise<boolean> {
+    const docRef = doc(db, COLLECTION_NAME, id);
+    const docSnap = await getDoc(docRef);
     return docSnap.exists();
 }
 

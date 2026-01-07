@@ -23,6 +23,7 @@ export default function DashboardPage() {
     const [shareModalPromptSetId, setShareModalPromptSetId] = useState<string | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [showAll, setShowAll] = useState(false); // For admins to toggle "Mine" vs "All"
     const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; id: string }>({ isOpen: false, id: '' });
 
     // Form state
@@ -99,6 +100,9 @@ export default function DashboardPage() {
 
     // Filter prompt sets
     const filteredSets = promptSets.filter(set => {
+        // If admin and not showAll, only show their own
+        if (isAdmin && !showAll && set.userId !== user?.id) return false;
+
         const matchesCategory = selectedCategory === 'all' || set.categoryId === selectedCategory;
         const matchesSearch = !searchQuery ||
             set.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -111,7 +115,7 @@ export default function DashboardPage() {
             <div className={styles.header}>
                 <div className={styles.titleSection}>
                     <h1 className={styles.title}>
-                        {isAdmin ? 'All Prompt Sets' : 'My Prompt Sets'}
+                        {isAdmin ? (showAll ? 'All Prompt Sets (Admin)' : 'My Prompt Sets') : 'My Prompt Sets'}
                     </h1>
                     <p className={styles.subtitle}>
                         {filteredSets.length} prompt set{filteredSets.length !== 1 ? 's' : ''}
@@ -148,36 +152,50 @@ export default function DashboardPage() {
                         <option key={cat.id} value={cat.id}>{cat.name}</option>
                     ))}
                 </select>
+
+                {isAdmin && (
+                    <div className={styles.adminToggle}>
+                        <Button
+                            variant={showAll ? 'success' : 'secondary'}
+                            size="sm"
+                            onClick={() => setShowAll(!showAll)}
+                        >
+                            {showAll ? 'Showing All Prompts' : 'Show All prompts (Admin)'}
+                        </Button>
+                    </div>
+                )}
             </div>
 
-            {isLoading ? (
-                <div className={styles.loading}>
-                    <div className={styles.spinner} />
-                    <p>Loading your prompts...</p>
-                </div>
-            ) : filteredSets.length === 0 ? (
-                <div className={styles.empty}>
-                    <span className={styles.emptyIcon}>📝</span>
-                    <h3>No prompt sets yet</h3>
-                    <p>Create your first prompt set to get started</p>
-                    <Button onClick={() => setIsCreateModalOpen(true)}>
-                        Create Prompt Set
-                    </Button>
-                </div>
-            ) : (
-                <div className={styles.grid}>
-                    {filteredSets.map(set => (
-                        <PromptSetCard
-                            key={set.id}
-                            promptSet={set}
-                            onView={id => router.push(`/prompts/${id}`)}
-                            onEdit={id => router.push(`/prompts/${id}`)}
-                            onDelete={handleDelete}
-                            onShare={id => setShareModalPromptSetId(id)}
-                        />
-                    ))}
-                </div>
-            )}
+            {
+                isLoading ? (
+                    <div className={styles.loading}>
+                        <div className={styles.spinner} />
+                        <p>Loading your prompts...</p>
+                    </div>
+                ) : filteredSets.length === 0 ? (
+                    <div className={styles.empty}>
+                        <span className={styles.emptyIcon}>📝</span>
+                        <h3>No prompt sets yet</h3>
+                        <p>Create your first prompt set to get started</p>
+                        <Button onClick={() => setIsCreateModalOpen(true)}>
+                            Create Prompt Set
+                        </Button>
+                    </div>
+                ) : (
+                    <div className={styles.grid}>
+                        {filteredSets.map(set => (
+                            <PromptSetCard
+                                key={set.id}
+                                promptSet={set}
+                                onView={id => router.push(`/prompts/${id}`)}
+                                onEdit={id => router.push(`/prompts/${id}`)}
+                                onDelete={handleDelete}
+                                onShare={id => setShareModalPromptSetId(id)}
+                            />
+                        ))}
+                    </div>
+                )
+            }
 
             {/* Create Modal */}
             <Modal
@@ -269,6 +287,6 @@ export default function DashboardPage() {
                 variant="danger"
                 confirmLabel="Delete"
             />
-        </div>
+        </div >
     );
 }

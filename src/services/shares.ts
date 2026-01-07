@@ -148,7 +148,7 @@ export async function acceptShare(shareId: string): Promise<PromptSet | null> {
     const newPromptSet: PromptSet = {
         ...share.promptSetSnapshot,
         id: newSetId,
-        userId: currentUser.id,
+        userId: currentUser.id, // Explicitly set to recipient
         versions: newVersions,
         createdAt: now,
         updatedAt: now,

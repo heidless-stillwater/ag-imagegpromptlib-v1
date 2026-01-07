@@ -13,11 +13,23 @@ interface MediaGalleryProps {
     onDownload: (ids: string[]) => void;
     isAdminView?: boolean;
     groups?: { title: string; images: MediaImage[] }[];
+    selectedIds: string[];
+    isSelectionMode: boolean;
+    onSelectionModeChange: (active: boolean) => void;
+    onSelectedIdsChange: (ids: string[]) => void;
 }
 
-export default function MediaGallery({ images, onDelete, onDownload, isAdminView = false, groups }: MediaGalleryProps) {
-    const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    const [isSelectionMode, setIsSelectionMode] = useState(false);
+export default function MediaGallery({
+    images,
+    onDelete,
+    onDownload,
+    isAdminView = false,
+    groups,
+    selectedIds,
+    isSelectionMode,
+    onSelectionModeChange,
+    onSelectedIdsChange
+}: MediaGalleryProps) {
     const [confirmDelete, setConfirmDelete] = useState<{
         isOpen: boolean;
         ids: string[];
@@ -36,17 +48,10 @@ export default function MediaGallery({ images, onDelete, onDownload, isAdminView
     };
 
     const toggleSelect = (id: string) => {
-        setSelectedIds(prev =>
-            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-        );
-    };
-
-    const handleSelectAll = () => {
-        if (selectedIds.length === images.length) {
-            setSelectedIds([]);
-        } else {
-            setSelectedIds(images.map(img => img.id));
-        }
+        const newIds = selectedIds.includes(id)
+            ? selectedIds.filter(i => i !== id)
+            : [...selectedIds, id];
+        onSelectedIdsChange(newIds);
     };
 
     const handleSelectGroup = (groupImages: MediaImage[]) => {
@@ -54,25 +59,14 @@ export default function MediaGallery({ images, onDelete, onDownload, isAdminView
         const allSelected = groupIds.every(id => selectedIds.includes(id));
 
         if (allSelected) {
-            setSelectedIds(prev => prev.filter(id => !groupIds.includes(id)));
+            onSelectedIdsChange(selectedIds.filter(id => !groupIds.includes(id)));
         } else {
-            setSelectedIds(prev => [...new Set([...prev, ...groupIds])]);
+            onSelectedIdsChange([...new Set([...selectedIds, ...groupIds])]);
         }
-    };
-
-    const handleBulkDelete = () => {
-        setConfirmDelete({
-            isOpen: true,
-            ids: selectedIds
-        });
     };
 
     const confirmDeleteAction = () => {
         confirmDelete.ids.forEach(id => onDelete(id));
-        if (confirmDelete.ids.length > 1) {
-            setSelectedIds([]);
-            setIsSelectionMode(false);
-        }
         setConfirmDelete({ isOpen: false, ids: [] });
     };
 
@@ -88,31 +82,8 @@ export default function MediaGallery({ images, onDelete, onDownload, isAdminView
 
     return (
         <div className={styles.container}>
-            <div className={styles.actions}>
-                <div className={styles.selectionInfo}>
-                    {isSelectionMode ? (
-                        <>
-                            <span>{selectedIds.length} selected</span>
-                            <Button size="sm" variant="secondary" onClick={handleSelectAll}>
-                                {selectedIds.length === images.length ? 'Deselect All' : 'Select All'}
-                            </Button>
-                            <Button size="sm" variant="secondary" onClick={() => { setIsSelectionMode(false); setSelectedIds([]); }}>
-                                Cancel
-                            </Button>
-                            <Button size="sm" variant="danger" onClick={handleBulkDelete} disabled={selectedIds.length === 0}>
-                                Delete Selected
-                            </Button>
-                            <Button size="sm" variant="secondary" onClick={() => onDownload(selectedIds)} disabled={selectedIds.length === 0}>
-                                Download Selected
-                            </Button>
-                        </>
-                    ) : (
-                        <Button size="sm" variant="secondary" onClick={() => setIsSelectionMode(true)}>
-                            Select Images
-                        </Button>
-                    )}
-                </div>
-            </div>
+            {/* The actions are now handled by the parent page header */}
+
 
 
 

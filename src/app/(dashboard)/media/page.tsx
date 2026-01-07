@@ -24,6 +24,10 @@ export default function MediaPage() {
     const [isRestoring, setIsRestoring] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'grouped'>('grid');
 
+    // Selection state
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
     // Conflict resolution state
     const [conflict, setConflict] = useState<{
         filename: string;
@@ -39,6 +43,21 @@ export default function MediaPage() {
         isOpen: false,
         title: '',
         message: '',
+        variant: 'info'
+    });
+
+    // Confirmation state
+    const [confirmation, setConfirmation] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant: 'info' | 'success' | 'danger';
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
         variant: 'info'
     });
 
@@ -77,9 +96,70 @@ export default function MediaPage() {
             const success = await deleteMediaImage(id);
             if (success) {
                 setImages(prev => prev.filter(img => img.id !== id));
+                setSelectedIds(prev => prev.filter(i => i !== id));
             }
         } catch (error) {
             console.error('Failed to delete image:', error);
+        }
+    };
+
+    const handleBulkDelete = () => {
+        if (selectedIds.length === 0) return;
+
+        setConfirmation({
+            isOpen: true,
+            title: 'Delete Selected Media',
+            message: `Are you sure you want to delete ${selectedIds.length} images from your library?`,
+            variant: 'danger',
+            onConfirm: async () => {
+                try {
+                    const success = await deleteMediaImages(selectedIds);
+                    if (success) {
+                        setImages(prev => prev.filter(img => !selectedIds.includes(img.id)));
+                        setSelectedIds([]);
+                        setIsSelectionMode(false);
+                        setFeedback({
+                            isOpen: true,
+                            title: 'Deleted',
+                            message: 'Successfully removed selected images.',
+                            variant: 'success'
+                        });
+                    }
+                } catch (error) {
+                    console.error('Bulk delete failed:', error);
+                } finally {
+                    setConfirmation(prev => ({ ...prev, isOpen: false }));
+                }
+            }
+        });
+    };
+
+    const handleDownloadSelectedZip = async () => {
+        const selectedImages = images.filter(img => selectedIds.includes(img.id));
+        if (selectedImages.length === 0) return;
+
+        setIsDownloading(true);
+        try {
+            const blob = await exportMediaZip(selectedImages);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `media-selection-${new Date().toISOString().split('T')[0]}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            setFeedback({
+                isOpen: true,
+                title: 'Download Ready',
+                message: `Successfully archived ${selectedImages.length} images.`,
+                variant: 'success'
+            });
+        } catch (error) {
+            console.error('Selection backup failed:', error);
+        } finally {
+            setIsDownloading(false);
         }
     };
 
@@ -227,6 +307,14 @@ export default function MediaPage() {
         }
     };
 
+    const handleSelectAll = () => {
+        if (selectedIds.length === images.length) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(images.map(img => img.id));
+        }
+    };
+
     const groupedImages = useMemo(() => {
         if (viewMode !== 'grouped') return undefined;
 
@@ -273,72 +361,116 @@ export default function MediaPage() {
                 </div>
 
                 <div className={styles.headerActions}>
-                    <div className={styles.viewToggle} style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '4px', borderRadius: '8px', marginRight: '16px' }}>
-                        <Button
-                            size="sm"
-                            variant={viewMode === 'grid' ? 'primary' : 'ghost'}
-                            onClick={() => setViewMode('grid')}
-                            title="Grid View"
-                        >
-                            Grid
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant={viewMode === 'grouped' ? 'primary' : 'ghost'}
-                            onClick={() => setViewMode('grouped')}
-                            title="Group by Prompt"
-                        >
-                            Groups
-                        </Button>
-                    </div>
+                    {!isSelectionMode ? (
+                        <>
+                            <div className={styles.viewToggle} style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '4px', borderRadius: '8px', marginRight: '16px' }}>
+                                <Button
+                                    size="sm"
+                                    variant={viewMode === 'grid' ? 'primary' : 'ghost'}
+                                    onClick={() => setViewMode('grid')}
+                                    title="Grid View"
+                                >
+                                    Grid
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant={viewMode === 'grouped' ? 'primary' : 'ghost'}
+                                    onClick={() => setViewMode('grouped')}
+                                    title="Group by Prompt"
+                                >
+                                    Groups
+                                </Button>
+                            </div>
 
-                    <Button
-                        variant="secondary"
-                        onClick={handleSync}
-                        isLoading={isSyncing}
-                        title="Search versions for images not yet in library"
-                    >
-                        Sync
-                    </Button>
+                            <Button
+                                variant="secondary"
+                                onClick={handleSync}
+                                isLoading={isSyncing}
+                                title="Search versions for images not yet in library"
+                            >
+                                Sync
+                            </Button>
 
-                    <Button
-                        variant="secondary"
-                        onClick={handleBackupZip}
-                        isLoading={isBackingUp}
-                        disabled={images.length === 0}
-                        title="Download compressed ZIP of all images"
-                    >
-                        Backup (ZIP)
-                    </Button>
+                            <Button
+                                variant="secondary"
+                                onClick={handleBackupZip}
+                                isLoading={isBackingUp}
+                                disabled={images.length === 0}
+                                title="Download compressed ZIP of all images"
+                            >
+                                Backup (ZIP)
+                            </Button>
 
-                    <div className={styles.fileInputWrapper}>
-                        <Button
-                            variant="primary"
-                            isLoading={isRestoring}
-                            title="Upload ZIP to restore media library"
-                        >
-                            Restore (ZIP)
-                        </Button>
-                        <input
-                            type="file"
-                            accept=".zip"
-                            onChange={handleRestoreZip}
-                            className={styles.fileInput}
-                        />
-                    </div>
+                            <div className={styles.fileInputWrapper}>
+                                <Button
+                                    variant="secondary"
+                                    isLoading={isRestoring}
+                                    title="Upload ZIP to restore media library"
+                                >
+                                    Restore (ZIP)
+                                </Button>
+                                <input
+                                    type="file"
+                                    accept=".zip"
+                                    onChange={handleRestoreZip}
+                                    className={styles.fileInput}
+                                />
+                            </div>
 
-                    <Button
-                        variant="secondary"
-                        onClick={() => handleDownload()} // Download all
-                        isLoading={isDownloading}
-                        disabled={images.length === 0}
-                        title="Download all images"
-                    >
-                        Download All
-                    </Button>
+                            <Button
+                                variant="primary"
+                                onClick={() => setIsSelectionMode(true)}
+                                title="Select multiple images for actions"
+                            >
+                                Select Images
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <div className={styles.selectionStats}>
+                                <span>{selectedIds.length} selected</span>
+                            </div>
+
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={handleSelectAll}
+                            >
+                                {selectedIds.length === images.length ? 'Deselect All' : 'Select All'}
+                            </Button>
+
+                            <Button
+                                size="sm"
+                                variant="primary"
+                                onClick={handleDownloadSelectedZip}
+                                isLoading={isDownloading}
+                                disabled={selectedIds.length === 0}
+                                title="Download selected images as ZIP archive"
+                            >
+                                Download Selected (ZIP)
+                            </Button>
+
+                            <Button
+                                size="sm"
+                                variant="danger"
+                                onClick={handleBulkDelete}
+                                disabled={selectedIds.length === 0}
+                                title="Delete selected images from library"
+                            >
+                                Delete Selected
+                            </Button>
+
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => { setIsSelectionMode(false); setSelectedIds([]); }}
+                            >
+                                Cancel
+                            </Button>
+                        </>
+                    )}
                 </div>
             </div>
-
 
             {
                 isLoading ? (
@@ -353,6 +485,10 @@ export default function MediaPage() {
                         onDownload={handleDownload}
                         isAdminView={isAdmin}
                         groups={groupedImages}
+                        selectedIds={selectedIds}
+                        isSelectionMode={isSelectionMode}
+                        onSelectionModeChange={setIsSelectionMode}
+                        onSelectedIdsChange={setSelectedIds}
                     />
                 )
             }
@@ -377,6 +513,17 @@ export default function MediaPage() {
                 variant={feedback.variant}
                 confirmLabel="Got It.."
                 cancelLabel=""
+            />
+
+            <ConfirmationModal
+                isOpen={confirmation.isOpen}
+                onClose={() => setConfirmation(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmation.onConfirm}
+                title={confirmation.title}
+                message={confirmation.message}
+                variant={confirmation.variant}
+                confirmLabel="Confirm"
+                cancelLabel="Cancel"
             />
         </div >
     );

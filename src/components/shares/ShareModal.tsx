@@ -17,7 +17,7 @@ interface ShareModalProps {
 type TabType = 'search' | 'directory' | 'invite';
 
 export default function ShareModal({ promptSetId, onClose }: ShareModalProps) {
-    const [activeTab, setActiveTab] = useState<TabType>('search');
+    const [activeTab, setActiveTab] = useState<TabType>('directory');
     const [promptSet, setPromptSet] = useState<PromptSet | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<User[]>([]);
@@ -30,13 +30,17 @@ export default function ShareModal({ promptSetId, onClose }: ShareModalProps) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const fetchPromptSet = async () => {
+        const fetchData = async () => {
+            setIsLoading(true);
             const set = await getPromptSetById(promptSetId);
             setPromptSet(set);
+            if (activeTab === 'directory') {
+                await loadDirectory();
+            }
             setIsLoading(false);
         };
-        fetchPromptSet();
-    }, [promptSetId]);
+        fetchData();
+    }, [promptSetId, activeTab]);
 
     const handleSearch = async () => {
         if (searchQuery.trim()) {

@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Share, User } from '@/types';
-import { getIncomingShares, getOutgoingShares, acceptShare, rejectShare, removeShare } from '@/services/shares';
-import { getUserById, getAllUsers } from '@/services/auth';
+import { acceptShare, rejectShare, removeShare } from '@/services/shares';
+import { getAllUsers } from '@/services/auth';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useShares } from '@/hooks/useShares';
 import Button from '@/components/ui/Button';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import styles from './page.module.css';
@@ -15,9 +16,8 @@ type TabType = 'incoming' | 'outgoing';
 export default function SharesPage() {
     const { user } = useAuth();
     const { refresh: refreshNotifications } = useNotifications();
+    const { incomingShares, outgoingShares, pendingIncomingCount } = useShares();
     const [activeTab, setActiveTab] = useState<TabType>('incoming');
-    const [incomingShares, setIncomingShares] = useState<Share[]>([]);
-    const [outgoingShares, setOutgoingShares] = useState<Share[]>([]);
     const [users, setUsers] = useState<User[]>([]);
 
     // Confirmation Modal state
@@ -36,28 +36,16 @@ export default function SharesPage() {
     });
 
     useEffect(() => {
-        loadShares();
-    }, [user]);
-
-    const loadShares = async () => {
-        try {
-            const [incoming, outgoing, allUsers] = await Promise.all([
-                getIncomingShares(),
-                getOutgoingShares(),
-                getAllUsers()
-            ]);
-            setIncomingShares(incoming);
-            setOutgoingShares(outgoing);
+        const loadUsers = async () => {
+            const allUsers = await getAllUsers();
             setUsers(allUsers);
-        } catch (error) {
-            console.error('Failed to load shares data:', error);
-        }
-    };
+        };
+        loadUsers();
+    }, []);
 
     const handleAccept = async (shareId: string) => {
         try {
             await acceptShare(shareId);
-            await loadShares();
             refreshNotifications();
         } catch (error) {
             console.error('Failed to accept share:', error);
@@ -75,7 +63,6 @@ export default function SharesPage() {
                 setConfirmAction(prev => ({ ...prev, isOpen: false }));
                 try {
                     await rejectShare(shareId);
-                    await loadShares();
                     refreshNotifications();
                 } catch (error) {
                     console.error('Failed to reject share:', error);
@@ -98,7 +85,6 @@ export default function SharesPage() {
                 setConfirmAction(prev => ({ ...prev, isOpen: false }));
                 try {
                     await removeShare(shareId);
-                    await loadShares();
                     refreshNotifications();
                 } catch (error) {
                     console.error('Failed to remove share:', error);
@@ -180,8 +166,6 @@ export default function SharesPage() {
         );
     };
 
-    const pendingIncoming = incomingShares.filter(s => s.state === 'inTransit').length;
-
     return (
         <div className={styles.container}>
             <div className={styles.header}>
@@ -197,7 +181,7 @@ export default function SharesPage() {
                     onClick={() => setActiveTab('incoming')}
                 >
                     📥 Incoming
-                    {pendingIncoming > 0 && <span className={styles.tabBadge}>{pendingIncoming}</span>}
+                    {pendingIncomingCount > 0 && <span className={styles.tabBadge}>{pendingIncomingCount}</span>}
                 </button>
                 <button
                     className={`${styles.tab} ${activeTab === 'outgoing' ? styles.active : ''}`}
@@ -205,7 +189,7 @@ export default function SharesPage() {
                 >
                     📤 Outgoing
                 </button>
-            </div>
+            </div >
 
             <div className={styles.content}>
                 {activeTab === 'incoming' && (
@@ -247,6 +231,6 @@ export default function SharesPage() {
                 variant={confirmAction.variant}
                 confirmLabel={confirmAction.confirmLabel}
             />
-        </div>
+        </div >
     );
 }

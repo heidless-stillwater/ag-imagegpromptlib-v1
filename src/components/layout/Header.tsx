@@ -5,11 +5,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useShares } from '@/hooks/useShares';
 import styles from './Header.module.css';
 
 export default function Header() {
     const { user, isAdmin, logout, switchRole } = useAuth();
     const { unreadCount } = useNotifications();
+    const { pendingIncomingCount } = useShares();
     const pathname = usePathname();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -74,8 +76,8 @@ export default function Header() {
                                     <line x1="12" y1="2" x2="12" y2="15" />
                                 </svg>
                                 <span>Shares</span>
-                                {unreadCount > 0 && (
-                                    <span className={styles.badge}>{unreadCount}</span>
+                                {pendingIncomingCount > 0 && (
+                                    <span className={styles.badge}>{pendingIncomingCount}</span>
                                 )}
                             </div>
                         </Link>

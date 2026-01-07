@@ -1,10 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getNotifications, getUnreadNotificationCount, markNotificationRead, markAllNotificationsRead } from '@/services/notifications';
+import {
+    collection,
+    query,
+    where,
+    onSnapshot,
+    orderBy
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { markNotificationRead, markAllNotificationsRead, getNotifications, getUnreadNotificationCount } from '@/services/notifications';
+import { useAuth } from '@/contexts/AuthContext';
 import { Notification } from '@/types';
 
 export function useNotifications() {
+    const { user } = useAuth();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
 
@@ -22,13 +32,25 @@ export function useNotifications() {
     };
 
     useEffect(() => {
-        refresh();
-        // Poll for new notifications every 5 seconds
-        const interval = setInterval(() => {
-            refresh();
-        }, 5000);
-        return () => clearInterval(interval);
-    }, []);
+        if (!user) {
+            setNotifications([]);
+            setUnreadCount(0);
+            return;
+        }
+
+        const colRef = collection(db, 'notifications');
+        const q = query(colRef, where('userId', '==', user.id), orderBy('createdAt', 'desc'));
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
+            setNotifications(notifs);
+            setUnreadCount(notifs.filter(n => !n.read).length);
+        }, (error) => {
+            console.error('Error listening to notifications:', error);
+        });
+
+        return () => unsubscribe();
+    }, [user]);
 
     const markAsRead = async (id: string) => {
         await markNotificationRead(id);

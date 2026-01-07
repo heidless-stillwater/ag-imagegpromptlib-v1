@@ -156,21 +156,16 @@ export async function acceptShare(shareId: string): Promise<PromptSet | null> {
 
     // Add to prompt sets
     await setDoc(doc(db, 'promptSets', newSetId), sanitizeData(newPromptSet));
-    console.log(`[acceptShare] Created new prompt set: ${newSetId} with ${newVersions.length} versions`);
 
     // Add images to user's media library
-    let addedCount = 0;
     for (const version of newVersions) {
         if (version.imageUrl) {
-            console.log(`[acceptShare] Adding version image to media: ${version.imageUrl}`);
             await addMediaImage(version.imageUrl, {
                 promptSetId: newSetId,
                 versionId: version.id
             });
-            addedCount++;
         }
     }
-    console.log(`[acceptShare] Finished adding ${addedCount} images to media library`);
 
     // Update share state
     await updateDoc(doc(db, COLLECTION_NAME, shareId), sanitizeData({

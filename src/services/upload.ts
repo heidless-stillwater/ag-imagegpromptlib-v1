@@ -51,15 +51,12 @@ export async function uploadUserAvatar(userId: string, dataUrl: string): Promise
  * Duplicate a file in storage by downloading and re-uploading to a new path
  */
 export async function duplicateStorageFile(originalUrl: string, newPath: string): Promise<string> {
-    console.log(`[duplicateStorageFile] Starting duplication of ${originalUrl} to ${newPath}`);
     try {
         const response = await fetch(originalUrl);
         if (!response.ok) throw new Error(`Failed to fetch original image: ${response.statusText}`);
 
         const blob = await response.blob();
-        const newUrl = await uploadToStorage(newPath, blob, { contentType: blob.type });
-        console.log(`[duplicateStorageFile] Success! New URL: ${newUrl}`);
-        return newUrl;
+        return await uploadToStorage(newPath, blob, { contentType: blob.type });
     } catch (error) {
         console.error('[duplicateStorageFile] Error duplicating storage file:', error);
         // If duplication fails, return the original URL as fallback

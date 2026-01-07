@@ -8,20 +8,15 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Helper to check if the user has 'admin' role in their profile
-    function isAdmin() {
-      return isAuthenticated() && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
     // Core Data
     match /promptSets/{document=**} {
       allow read, write: if isAuthenticated();
     }
     
-    // Users: Users can read/write their own. Admins can read all.
+    // Users: Any auth user can read basic profiles (needed for get() calls in rules and sharing).
+    // Users can only write their own profile.
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow read: if isAuthenticated();
       allow write: if isAuthenticated() && request.auth.uid == userId;
     }
 

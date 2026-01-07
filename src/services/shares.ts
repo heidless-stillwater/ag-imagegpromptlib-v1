@@ -16,6 +16,7 @@ import { getCurrentUser, getUserById, isAdmin } from './auth';
 import { getPromptSetById } from './promptSets';
 import { addMediaImage } from './media';
 import { generateId } from './storage';
+import { duplicateStorageFile } from './upload';
 import { createNotification } from './notifications';
 import { sanitizeData } from '@/lib/firestore';
 
@@ -123,12 +124,25 @@ export async function acceptShare(shareId: string): Promise<PromptSet | null> {
     const now = new Date().toISOString();
     const newSetId = generateId();
 
-    const newVersions = share.promptSetSnapshot.versions.map(v => ({
-        ...v,
-        id: generateId(),
-        promptSetId: newSetId,
-        createdAt: now,
-        updatedAt: now,
+    // Create copies of each image in each version
+    const newVersions = await Promise.all(share.promptSetSnapshot.versions.map(async (v) => {
+        const newVersionId = generateId();
+        let newImageUrl = v.imageUrl;
+
+        if (v.imageUrl) {
+            // Create a physical copy in storage for the recipient
+            const storagePath = `generated/${newSetId}/${newVersionId}_copy.png`;
+            newImageUrl = await duplicateStorageFile(v.imageUrl, storagePath);
+        }
+
+        return {
+            ...v,
+            id: newVersionId,
+            promptSetId: newSetId,
+            imageUrl: newImageUrl,
+            createdAt: now,
+            updatedAt: now,
+        };
     }));
 
     const newPromptSet: PromptSet = {
@@ -142,16 +156,21 @@ export async function acceptShare(shareId: string): Promise<PromptSet | null> {
 
     // Add to prompt sets
     await setDoc(doc(db, 'promptSets', newSetId), sanitizeData(newPromptSet));
+    console.log(`[acceptShare] Created new prompt set: ${newSetId} with ${newVersions.length} versions`);
 
     // Add images to user's media library
+    let addedCount = 0;
     for (const version of newVersions) {
         if (version.imageUrl) {
+            console.log(`[acceptShare] Adding version image to media: ${version.imageUrl}`);
             await addMediaImage(version.imageUrl, {
                 promptSetId: newSetId,
                 versionId: version.id
             });
+            addedCount++;
         }
     }
+    console.log(`[acceptShare] Finished adding ${addedCount} images to media library`);
 
     // Update share state
     await updateDoc(doc(db, COLLECTION_NAME, shareId), sanitizeData({

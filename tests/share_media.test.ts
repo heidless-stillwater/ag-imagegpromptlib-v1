@@ -28,6 +28,10 @@ vi.mock('../src/services/media', () => ({
     addMediaImage: vi.fn()
 }));
 
+vi.mock('../src/services/upload', () => ({
+    duplicateStorageFile: vi.fn((url) => Promise.resolve(`${url}_copy`))
+}));
+
 vi.mock('../src/services/notifications', () => ({
     createNotification: vi.fn()
 }));
@@ -54,7 +58,7 @@ describe('Accept Share - Media Population', () => {
         (auth.getCurrentUser as any).mockResolvedValue(mockUser);
     });
 
-    it('should add images from all versions to media library when share is accepted', async () => {
+    it('should create copies of images and add THEM to media library when share is accepted', async () => {
         // Mock getShareById (via getDoc)
         (firestore.getDoc as any).mockResolvedValue({
             exists: () => true,
@@ -65,16 +69,24 @@ describe('Accept Share - Media Population', () => {
 
         expect(result).not.toBeNull();
 
-        // Verify addMediaImage was called for each image
+        // Verify duplicateStorageFile was called for each image
+        const upload = await import('../src/services/upload');
+        expect(upload.duplicateStorageFile).toHaveBeenCalledTimes(2);
+
+        // Verify addMediaImage was called for each NEW image URL
         expect(media.addMediaImage).toHaveBeenCalledTimes(2);
-        expect(media.addMediaImage).toHaveBeenCalledWith('https://example.com/img1.png', expect.objectContaining({
+        expect(media.addMediaImage).toHaveBeenCalledWith('https://example.com/img1.png_copy', expect.objectContaining({
             promptSetId: expect.any(String),
             versionId: expect.any(String)
         }));
-        expect(media.addMediaImage).toHaveBeenCalledWith('https://example.com/img2.png', expect.objectContaining({
+        expect(media.addMediaImage).toHaveBeenCalledWith('https://example.com/img2.png_copy', expect.objectContaining({
             promptSetId: expect.any(String),
             versionId: expect.any(String)
         }));
+
+        // Verify result has the new URLs
+        expect(result?.versions[0].imageUrl).toBe('https://example.com/img1.png_copy');
+        expect(result?.versions[1].imageUrl).toBe('https://example.com/img2.png_copy');
 
         // Final verify that setDoc and updateDoc were called
         expect(firestore.setDoc).toHaveBeenCalled();

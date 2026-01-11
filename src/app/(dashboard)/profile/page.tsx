@@ -143,7 +143,7 @@ export default function ProfilePage() {
         setNeedsGenConfirmation(false);
         setIsGeneratingAvatar(true);
         try {
-            const result = await generateImage(avatarPrompt, 'live');
+            const result = await generateImage(avatarPrompt, 'live', false, user?.settings?.geminiApiKey);
             if (result.success && result.imageUrl) {
                 try {
                     // Upload generated base64 to Storage

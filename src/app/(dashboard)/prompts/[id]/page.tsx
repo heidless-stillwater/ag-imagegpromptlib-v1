@@ -220,7 +220,12 @@ export default function PromptDetailPage() {
         const isTest = mode === 'test';
 
         try {
-            const result = await generateImage(selectedVersion.promptText, mode, isBypassingCache);
+            const result = await generateImage(
+                selectedVersion.promptText,
+                mode,
+                isBypassingCache,
+                user?.settings?.geminiApiKey
+            );
 
             if (result.success) {
                 if (isTest) {

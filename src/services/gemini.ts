@@ -153,7 +153,8 @@ export type GenerationMode = 'unsplash' | 'test' | 'live';
 export async function generateImage(
     prompt: string,
     mode: GenerationMode = 'live',
-    bypassCache: boolean = false
+    bypassCache: boolean = false,
+    apiKey?: string
 ): Promise<GenerationResult> {
     // For 'live' mode, first check cache
     if (mode === 'live' && !bypassCache) {
@@ -188,7 +189,8 @@ export async function generateImage(
             },
             body: JSON.stringify({
                 prompt,
-                testConnection: mode === 'test'
+                testConnection: mode === 'test',
+                apiKey
             }),
         });
 

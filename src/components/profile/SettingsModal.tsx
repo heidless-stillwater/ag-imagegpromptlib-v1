@@ -19,8 +19,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
     useEffect(() => {
-        if (isOpen && user?.settings) {
-            setGeminiApiKey(user.settings.geminiApiKey || '');
+        if (isOpen) {
+            setGeminiApiKey(user?.settings?.geminiApiKey || 'AIzaSyA9ljr_ryKxbtlTPwemOQ62NhOMTcGrOig');
             setMessage(null);
         }
     }, [isOpen, user]);
@@ -78,10 +78,10 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <p className={styles.helperText}>
                         Used for AI image prompt generation and assistant features.
                     </p>
-                    {geminiApiKey === '' && (
+                    {(!geminiApiKey || geminiApiKey === '') && (
                         <p className={styles.helperText} style={{ color: 'var(--accent-primary)', cursor: 'pointer' }}
                             onClick={() => setGeminiApiKey('AIzaSyA9ljr_ryKxbtlTPwemOQ62NhOMTcGrOig')}>
-                            Click to use default demo key
+                            Click to use standard key: AIzaSyA9ljr_ryKxbtlTPwemOQ62NhOMTcGrOig
                         </p>
                     )}
                 </div>

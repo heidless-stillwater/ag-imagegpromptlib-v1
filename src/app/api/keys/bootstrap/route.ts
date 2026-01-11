@@ -68,10 +68,15 @@ export async function POST(request: NextRequest) {
         });
     } catch (error) {
         console.error('Bootstrap key creation error:', error);
+
+        // Ensure we return a structured JSON error even for unexpected failures
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred during bootstrap';
+
         return NextResponse.json(
             {
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to create bootstrap API key',
+                error: errorMessage,
+                details: process.env.NODE_ENV === 'development' ? String(error) : undefined
             },
             { status: 500 }
         );

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { auth } from '@/lib/firebase';
 import { ApiKey } from '@/types';
 import styles from './api-keys.module.css';
 
@@ -61,12 +62,10 @@ export default function ApiKeysPage() {
                 'Content-Type': 'application/json',
             };
 
-            // For subsequent keys, we need an existing API key for authentication
-            if (!isFirstKey && keys.length > 0) {
-                // Use the first available key for authentication
-                // In a real scenario, you'd store one key securely for this purpose
-                setError('To create additional keys, you need to use an existing API key. Please use the API directly or store your first key securely.');
-                return;
+            // Get the current user's ID token for authentication
+            const token = await auth.currentUser?.getIdToken();
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
             }
 
             const body = isFirstKey
@@ -86,7 +85,19 @@ export default function ApiKeysPage() {
                 body: JSON.stringify(body),
             });
 
-            const data = await response.json();
+            // Check if response is JSON before parsing
+            const contentType = response.headers.get('content-type');
+            let data;
+
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                // Handle non-JSON response (like 500 HTML error page)
+                const text = await response.text();
+                console.error('Non-JSON response received:', text);
+                setError(`Server Error (${response.status}): The server returned an unexpected response format. This usually indicates a configuration issue.`);
+                return;
+            }
 
             if (data.success) {
                 setCreatedKey(data.data.fullKey);
@@ -98,7 +109,7 @@ export default function ApiKeysPage() {
             }
         } catch (err) {
             console.error('Error creating API key:', err);
-            setError('Failed to create API key');
+            setError(`Failed to create API key: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     };
 

@@ -1,11 +1,12 @@
 import { NextRequest } from 'next/server';
-import { getAdminFirestore } from './firebase-admin';
+import { getAdminFirestore, getAdminAuth } from './firebase-admin';
 import * as crypto from 'crypto';
 
 export interface ApiAuthContext {
     userId: string;
-    keyId: string;
+    keyId?: string; // Optional because Firebase Auth tokens don't have a keyId
     isValid: boolean;
+    authType: 'apiKey' | 'firebase';
 }
 
 /**
@@ -14,45 +15,61 @@ export interface ApiAuthContext {
  * @returns Authentication context with user info if valid
  */
 export async function validateApiKey(request: NextRequest): Promise<ApiAuthContext | null> {
-    const apiKey = request.headers.get('x-api-key') || request.headers.get('authorization')?.replace('Bearer ', '');
+    const authHeader = request.headers.get('authorization') || '';
+    const xApiKey = request.headers.get('x-api-key');
 
-    if (!apiKey) {
+    const token = xApiKey || authHeader.replace('Bearer ', '');
+
+    if (!token) {
         return null;
     }
 
     try {
-        // Hash the provided key
-        const keyHash = hashApiKey(apiKey);
+        // 1. Try validating as API Key (starts with pk_live_)
+        if (token.startsWith('pk_live_')) {
+            const keyHash = hashApiKey(token);
+            const db = getAdminFirestore();
+            const keysRef = db.collection('apiKeys');
+            const snapshot = await keysRef.where('keyHash', '==', keyHash).limit(1).get();
 
-        // Look up the key in Firestore
-        const db = getAdminFirestore();
-        const keysRef = db.collection('apiKeys');
-        const snapshot = await keysRef.where('keyHash', '==', keyHash).limit(1).get();
+            if (!snapshot.empty) {
+                const keyDoc = snapshot.docs[0];
+                const keyData = keyDoc.data();
 
-        if (snapshot.empty) {
-            return null;
+                if (!(keyData.expiresAt && new Date(keyData.expiresAt) < new Date())) {
+                    await keyDoc.ref.update({
+                        lastUsed: new Date().toISOString(),
+                    });
+
+                    return {
+                        userId: keyData.userId,
+                        keyId: keyDoc.id,
+                        isValid: true,
+                        authType: 'apiKey',
+                    };
+                }
+            }
         }
 
-        const keyDoc = snapshot.docs[0];
-        const keyData = keyDoc.data();
-
-        // Check if key is expired
-        if (keyData.expiresAt && new Date(keyData.expiresAt) < new Date()) {
-            return null;
+        // 2. Try validating as Firebase ID Token
+        try {
+            const auth = getAdminAuth();
+            const decodedToken = await auth.verifyIdToken(token);
+            if (decodedToken) {
+                return {
+                    userId: decodedToken.uid,
+                    isValid: true,
+                    authType: 'firebase',
+                };
+            }
+        } catch (authError) {
+            // Not a valid Firebase token or error during verification
+            // Fall through to return null
         }
 
-        // Update last used timestamp
-        await keyDoc.ref.update({
-            lastUsed: new Date().toISOString(),
-        });
-
-        return {
-            userId: keyData.userId,
-            keyId: keyDoc.id,
-            isValid: true,
-        };
+        return null;
     } catch (error) {
-        console.error('API key validation error:', error);
+        console.error('Authentication validation error:', error);
         return null;
     }
 }

@@ -45,6 +45,14 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
     
+    // API Keys: Users can only manage their own API keys
+    match /apiKeys/{keyId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
     match /inviteLinks/{document=**} {
       allow read, write: if isAuthenticated();
     }

@@ -125,6 +125,28 @@ export interface AuthState {
     isLoading: boolean;
 }
 
+// API Key types
+export interface ApiKey {
+    id: string;
+    userId: string;
+    name: string;
+    description?: string;
+    keyHash: string; // SHA-256 hash of the key
+    keyPrefix: string; // First 12 chars for display (e.g., "pk_live_...")
+    lastUsed?: string;
+    createdAt: string;
+    expiresAt?: string;
+}
+
+// Version with metadata for API responses
+export interface VersionWithMetadata extends PromptVersion {
+    promptSetTitle: string;
+    promptSetDescription?: string;
+    promptSetCategoryId?: string;
+    userName: string;
+    userEmail: string;
+}
+
 // API response types
 export interface ApiResponse<T> {
     success: boolean;

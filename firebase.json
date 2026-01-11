@@ -1,5 +1,6 @@
 {
     "firestore": {
+        "database": "imgprompt-db-0",
         "rules": "firestore.rules",
         "indexes": "firestore.indexes.json"
     },

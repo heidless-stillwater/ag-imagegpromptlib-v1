@@ -1,6 +1,9 @@
 .backdrop {
     position: fixed;
     inset: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 100vh;
     background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(4px);
     display: flex;
@@ -8,7 +11,7 @@
     justify-content: center;
     z-index: var(--z-modal-backdrop);
     animation: fadeIn var(--transition-fast) ease-out;
-    padding: var(--space-4);
+    padding: 2rem;
 }
 
 .modal {
@@ -21,7 +24,8 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    animation: slideUp var(--transition-base) ease-out;
+    margin: auto;
+    animation: fadeIn var(--transition-base) ease-out;
 }
 
 .sm {

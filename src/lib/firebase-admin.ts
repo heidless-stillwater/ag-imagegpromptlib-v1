@@ -1,18 +1,17 @@
-import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
+import * as admin from 'firebase-admin';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
-import { getAuth, Auth } from 'firebase-admin/auth';
 
 // Initialize Firebase Admin SDK
-let adminApp: App;
+let adminApp: admin.app.App;
 
-export function getAdminApp(): App {
+export function getAdminApp(): admin.app.App {
     if (adminApp) {
         return adminApp;
     }
 
-    const apps = getApps();
-    if (apps.length > 0) {
-        adminApp = apps[0];
+    const apps = admin.apps;
+    if (apps && apps.length > 0) {
+        adminApp = apps[0] as admin.app.App;
         return adminApp;
     }
 
@@ -61,8 +60,8 @@ export function getAdminApp(): App {
             throw new Error(`Missing mandatory service account fields: ${missing.join(', ')}`);
         }
 
-        adminApp = initializeApp({
-            credential: cert(serviceAccount),
+        adminApp = admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
             databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`,
         });
 
@@ -79,7 +78,7 @@ export function getAdminFirestore(): Firestore {
     return getFirestore(app, 'imgprompt-db-0');
 }
 
-export function getAdminAuth(): Auth {
+export function getAdminAuth(): admin.auth.Auth {
     const app = getAdminApp();
-    return getAuth(app);
+    return app.auth();
 }

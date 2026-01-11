@@ -5,16 +5,19 @@ import type { Auth } from 'firebase-admin/auth';
 // Initialize Firebase Admin SDK
 let adminApp: admin.app.App;
 
+// Escape hatch for Turbopack/Next.js bundling issues
+const dynamicRequire = typeof window === 'undefined' ? eval('require') : () => { throw new Error('Cannot use firebase-admin on client side'); };
+
 /**
  * Robustly initialize Firebase Admin SDK
  */
 export function getAdminApp(): admin.app.App {
     if (adminApp) return adminApp;
 
-    // Use late-bound require to avoid module resolution issues at top-level
-    const adminReq = require('firebase-admin');
+    // Use dynamicRequire to hide from Turbopack's static analysis
+    const admin = dynamicRequire('firebase-admin');
 
-    const apps = adminReq.apps;
+    const apps = admin.apps;
     if (apps && apps.length > 0) {
         adminApp = apps[0] as admin.app.App;
         return adminApp;
@@ -65,8 +68,8 @@ export function getAdminApp(): admin.app.App {
             throw new Error(`Missing mandatory service account fields: ${missing.join(', ')}`);
         }
 
-        adminApp = adminReq.initializeApp({
-            credential: adminReq.credential.cert(serviceAccount),
+        adminApp = admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
             databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`,
         });
 
@@ -82,8 +85,8 @@ export function getAdminApp(): admin.app.App {
  */
 export function getAdminFirestore(): Firestore {
     const app = getAdminApp();
-    // Use modular getFirestore dynamically to ensure proper database targeting
-    const { getFirestore } = require('firebase-admin/firestore');
+    // Use dynamicRequire to ensure modular firebase-admin submodules are loaded correctly
+    const { getFirestore } = dynamicRequire('firebase-admin/firestore');
     return getFirestore(app, 'imgprompt-db-0');
 }
 

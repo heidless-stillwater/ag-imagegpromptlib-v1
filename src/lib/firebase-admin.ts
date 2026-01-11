@@ -1,17 +1,18 @@
-import * as admin from 'firebase-admin';
-import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getAuth, Auth } from 'firebase-admin/auth';
 
 // Initialize Firebase Admin SDK
-let adminApp: admin.app.App;
+let adminApp: App;
 
-export function getAdminApp(): admin.app.App {
+export function getAdminApp(): App {
     if (adminApp) {
         return adminApp;
     }
 
-    // Check if already initialized
-    if (admin.apps.length > 0) {
-        adminApp = admin.apps[0] as admin.app.App;
+    const apps = getApps();
+    if (apps.length > 0) {
+        adminApp = apps[0];
         return adminApp;
     }
 
@@ -19,11 +20,18 @@ export function getAdminApp(): admin.app.App {
         let serviceAccount: any;
 
         // Try getting from JSON string first (production standard)
-        if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+        const jsonKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+        if (jsonKey) {
             try {
-                serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+                let keyStr = jsonKey.trim();
+                // Strip literal quotes that might be included in the env var file
+                if ((keyStr.startsWith("'") && keyStr.endsWith("'")) ||
+                    (keyStr.startsWith('"') && keyStr.endsWith('"'))) {
+                    keyStr = keyStr.substring(1, keyStr.length - 1);
+                }
+                serviceAccount = JSON.parse(keyStr);
             } catch (parseError) {
-                console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:', parseError);
+                console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY JSON:', parseError);
             }
         }
 
@@ -44,30 +52,34 @@ export function getAdminApp(): admin.app.App {
             };
         }
 
-        // Validate essential fields to prevent obscure initialization errors
+        // Final validation
         if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
-            throw new Error(`Missing mandatory service account fields. project_id: ${!!serviceAccount.project_id}, private_key: ${!!serviceAccount.private_key}, client_email: ${!!serviceAccount.client_email}`);
+            const missing = [];
+            if (!serviceAccount.project_id) missing.push('project_id');
+            if (!serviceAccount.private_key) missing.push('private_key');
+            if (!serviceAccount.client_email) missing.push('client_email');
+            throw new Error(`Missing mandatory service account fields: ${missing.join(', ')}`);
         }
 
-        adminApp = admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+        adminApp = initializeApp({
+            credential: cert(serviceAccount),
             databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`,
         });
 
         return adminApp;
     } catch (error) {
-        console.error('Firebase Admin initialization error:', error);
+        console.error('CRITICAL: Firebase Admin initialization failed:', error);
         throw error;
     }
 }
 
-export function getAdminFirestore(): admin.firestore.Firestore {
+export function getAdminFirestore(): Firestore {
     const app = getAdminApp();
     // Use the specific database ID as configured in the client
     return getFirestore(app, 'imgprompt-db-0');
 }
 
-export function getAdminAuth(): admin.auth.Auth {
+export function getAdminAuth(): Auth {
     const app = getAdminApp();
-    return app.auth();
+    return getAuth(app);
 }

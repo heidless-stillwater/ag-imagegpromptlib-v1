@@ -1,17 +1,18 @@
-import * as admin from 'firebase-admin';
-import { getFirestore, Firestore } from 'firebase-admin/firestore';
-
 // Initialize Firebase Admin SDK
-let adminApp: admin.app.App;
+let adminApp: any;
 
-export function getAdminApp(): admin.app.App {
-    if (adminApp) {
-        return adminApp;
-    }
+/**
+ * Robustly initialize Firebase Admin SDK
+ */
+export function getAdminApp(): any {
+    if (adminApp) return adminApp;
+
+    // Use late-bound require to avoid module resolution issues at top-level
+    const admin = require('firebase-admin');
 
     const apps = admin.apps;
     if (apps && apps.length > 0) {
-        adminApp = apps[0] as admin.app.App;
+        adminApp = apps[0];
         return adminApp;
     }
 
@@ -72,13 +73,20 @@ export function getAdminApp(): admin.app.App {
     }
 }
 
-export function getAdminFirestore(): Firestore {
+/**
+ * Get Firestore instance targeting the specific database
+ */
+export function getAdminFirestore(): any {
     const app = getAdminApp();
-    // Use the specific database ID as configured in the client
+    // Use modular getFirestore dynamically to ensure proper database targeting
+    const { getFirestore } = require('firebase-admin/firestore');
     return getFirestore(app, 'imgprompt-db-0');
 }
 
-export function getAdminAuth(): admin.auth.Auth {
+/**
+ * Get Auth instance
+ */
+export function getAdminAuth(): any {
     const app = getAdminApp();
     return app.auth();
 }

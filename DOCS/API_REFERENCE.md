@@ -25,8 +25,10 @@ X-API-Key: pk_live_your_key_here
 ### Versions
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/versions` | Get all versions (all prompt sets) |
-| GET | `/api/versions/user/<userId>` | Get all versions for a user |
+| GET | `/api/versions` | All versions across all prompt sets |
+| GET | `/api/versions/user/:userId` | All versions for a specific user |
+| GET | `/api/promptSets/user/:userId` | All prompt sets for a specific user |
+| GET | `/api/promptSets/:id/versions/:versionId` | Specific version of a prompt set |
 
 ### Prompt Sets
 | Method | Endpoint | Description |
@@ -84,6 +86,16 @@ curl -X POST http://localhost:3000/api/promptSets/SET_ID/versions \
     "notes":"Version 2"
   }'
 ```
+
+### 3. Retrieve User Prompt Sets
+
+**Endpoint**: `GET /api/promptSets/user/:userId`
+**Description**: Returns a list of all promptSets for a particular User.
+
+### 4. Retrieve Specific Version
+
+**Endpoint**: `GET /api/promptSets/:id/versions/:versionId`
+**Description**: Returns a specific Version of a Specific PromptSet for a specific User.
 
 ---
 

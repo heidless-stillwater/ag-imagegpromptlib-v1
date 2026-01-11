@@ -10,6 +10,10 @@ export interface User {
     password?: string; // For mock auth
     role: 'admin' | 'member';
     isPublic: boolean; // For user directory visibility
+    settings?: {
+        geminiApiKey?: string;
+        [key: string]: any;
+    };
     createdAt: string;
 }
 

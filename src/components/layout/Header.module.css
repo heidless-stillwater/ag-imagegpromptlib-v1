@@ -195,6 +195,25 @@
     color: var(--color-error);
 }
 
+.settingsBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+}
+
+.settingsBtn:hover {
+    background: var(--color-bg-tertiary);
+    color: var(--color-accent-primary);
+}
+
 .desktopOnly {
     display: block;
 }

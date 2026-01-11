@@ -50,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             avatarPrompt: userData.avatarPrompt || '',
                             username: userData.username || '',
                             loginName: userData.loginName || '',
+                            settings: userData.settings || {},
                             createdAt: userData.createdAt,
                         });
                     } else {

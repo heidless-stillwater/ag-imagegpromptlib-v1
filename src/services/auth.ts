@@ -25,6 +25,7 @@ const mapToAppUser = (firebaseUser: FirebaseUser, userData: any): User => ({
     avatarPrompt: userData?.avatarPrompt || '',
     username: userData?.username || '',
     loginName: userData?.loginName || '',
+    settings: userData?.settings || {},
     createdAt: userData?.createdAt || new Date().toISOString(),
 });
 

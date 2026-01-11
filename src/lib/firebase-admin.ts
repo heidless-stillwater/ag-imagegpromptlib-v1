@@ -1,18 +1,22 @@
+import type * as admin from 'firebase-admin';
+import type { Firestore } from 'firebase-admin/firestore';
+import type { Auth } from 'firebase-admin/auth';
+
 // Initialize Firebase Admin SDK
-let adminApp: any;
+let adminApp: admin.app.App;
 
 /**
  * Robustly initialize Firebase Admin SDK
  */
-export function getAdminApp(): any {
+export function getAdminApp(): admin.app.App {
     if (adminApp) return adminApp;
 
     // Use late-bound require to avoid module resolution issues at top-level
-    const admin = require('firebase-admin');
+    const adminReq = require('firebase-admin');
 
-    const apps = admin.apps;
+    const apps = adminReq.apps;
     if (apps && apps.length > 0) {
-        adminApp = apps[0];
+        adminApp = apps[0] as admin.app.App;
         return adminApp;
     }
 
@@ -61,8 +65,8 @@ export function getAdminApp(): any {
             throw new Error(`Missing mandatory service account fields: ${missing.join(', ')}`);
         }
 
-        adminApp = admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
+        adminApp = adminReq.initializeApp({
+            credential: adminReq.credential.cert(serviceAccount),
             databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`,
         });
 
@@ -76,7 +80,7 @@ export function getAdminApp(): any {
 /**
  * Get Firestore instance targeting the specific database
  */
-export function getAdminFirestore(): any {
+export function getAdminFirestore(): Firestore {
     const app = getAdminApp();
     // Use modular getFirestore dynamically to ensure proper database targeting
     const { getFirestore } = require('firebase-admin/firestore');
@@ -86,7 +90,7 @@ export function getAdminFirestore(): any {
 /**
  * Get Auth instance
  */
-export function getAdminAuth(): any {
+export function getAdminAuth(): Auth {
     const app = getAdminApp();
     return app.auth();
 }

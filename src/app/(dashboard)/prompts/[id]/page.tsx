@@ -80,6 +80,8 @@ export default function PromptDetailPage() {
         variant: 'info'
     });
 
+    const [copyFeedback, setCopyFeedback] = useState(false);
+
     useEffect(() => {
         loadData();
     }, [promptSetId]);
@@ -142,6 +144,16 @@ export default function PromptDetailPage() {
 
         await loadData();
         setIsEditModalOpen(false);
+    };
+
+    const handleCopyPrompt = async (text: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopyFeedback(true);
+            setTimeout(() => setCopyFeedback(false), 2000);
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+        }
     };
 
     const handleAddVersion = async () => {
@@ -438,7 +450,16 @@ export default function PromptDetailPage() {
                                 </div>
 
                                 <div className={styles.promptBox}>
-                                    <label>Prompt</label>
+                                    <div className={styles.promptHeader}>
+                                        <label>Prompt</label>
+                                        <button
+                                            className={styles.copyBtn}
+                                            onClick={() => handleCopyPrompt(selectedVersion.promptText)}
+                                            title="Copy full prompt"
+                                        >
+                                            {copyFeedback ? '✓ Copied!' : '📋 Copy'}
+                                        </button>
+                                    </div>
                                     <p>{selectedVersion.promptText}</p>
                                 </div>
 

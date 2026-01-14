@@ -277,18 +277,28 @@ export default function AttachmentPicker({
                                 <div className={styles.empty}>No prompt sets found</div>
                             ) : (
                                 <div className={styles.promptSetsList}>
-                                    {filteredPromptSets.map(ps => (
-                                        <button
-                                            key={ps.id}
-                                            className={styles.promptSetItem}
-                                            onClick={() => setSelectedPromptSet(ps)}
-                                        >
-                                            <span className={styles.psTitle}>{ps.title}</span>
-                                            <span className={styles.psVersions}>
-                                                {ps.versions.filter(v => v.imageUrl).length} versions with images
-                                            </span>
-                                        </button>
-                                    ))}
+                                    {filteredPromptSets.map(ps => {
+                                        const firstImageVersion = ps.versions.find(v => v.imageUrl);
+                                        return (
+                                            <button
+                                                key={ps.id}
+                                                className={styles.promptSetItem}
+                                                onClick={() => setSelectedPromptSet(ps)}
+                                            >
+                                                {firstImageVersion?.imageUrl && (
+                                                    <div className={styles.psThumbnail}>
+                                                        <img src={firstImageVersion.imageUrl} alt="" />
+                                                    </div>
+                                                )}
+                                                <div className={styles.psInfo}>
+                                                    <span className={styles.psTitle}>{ps.title}</span>
+                                                    <span className={styles.psVersions}>
+                                                        {ps.versions.filter(v => v.imageUrl).length} versions with images
+                                                    </span>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>

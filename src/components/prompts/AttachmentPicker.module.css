@@ -206,15 +206,15 @@
 
 .promptSetItem {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.25rem;
-    padding: 1rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
+    border-radius: 12px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     text-align: left;
     width: 100%;
 }
@@ -224,15 +224,37 @@
     border-color: rgba(255, 255, 255, 0.2);
 }
 
+.psThumbnail {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.psThumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.psInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    flex: 1;
+}
+
 .psTitle {
-    font-size: 0.875rem;
-    font-weight: 500;
+    font-size: 0.9375rem;
+    font-weight: 600;
     color: var(--text-primary, #fff);
 }
 
 .psVersions {
     font-size: 0.75rem;
-    color: var(--text-tertiary, #666);
+    color: var(--text-secondary, #a0a0a0);
 }
 
 .versionsList {

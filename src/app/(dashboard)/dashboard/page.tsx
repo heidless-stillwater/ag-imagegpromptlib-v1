@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { PromptSet, Category } from '@/types';
+import { PromptSet, Category, Attachment } from '@/types';
 import { getPromptSets, createPromptSet, deletePromptSet } from '@/services/promptSets';
 import { getCategories } from '@/services/categories';
 import PromptSetCard from '@/components/prompts/PromptSetCard';
@@ -11,6 +11,8 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import ShareModal from '@/components/shares/ShareModal';
+import AttachmentPicker from '@/components/prompts/AttachmentPicker';
+import AttachmentList from '@/components/prompts/AttachmentList';
 import styles from './page.module.css';
 
 export default function DashboardPage() {
@@ -31,6 +33,8 @@ export default function DashboardPage() {
     const [newDescription, setNewDescription] = useState('');
     const [newCategoryId, setNewCategoryId] = useState('');
     const [newPrompt, setNewPrompt] = useState('');
+    const [newAttachments, setNewAttachments] = useState<Attachment[]>([]);
+    const [isAttachmentPickerOpen, setIsAttachmentPickerOpen] = useState(false);
 
     const [isLoading, setIsLoading] = useState(true);
 
@@ -63,6 +67,7 @@ export default function DashboardPage() {
                 description: newDescription,
                 categoryId: newCategoryId || undefined,
                 initialPrompt: newPrompt || undefined,
+                initialAttachments: newAttachments.length > 0 ? newAttachments : undefined,
             });
 
             if (created) {
@@ -96,6 +101,7 @@ export default function DashboardPage() {
         setNewDescription('');
         setNewCategoryId('');
         setNewPrompt('');
+        setNewAttachments([]);
     };
 
     // Filter prompt sets
@@ -247,9 +253,26 @@ export default function DashboardPage() {
                         <textarea
                             value={newPrompt}
                             onChange={e => setNewPrompt(e.target.value)}
-                            placeholder="Enter your first prompt version..."
+                            placeholder="Enter your first prompt version... Use {{file:name}} to reference attachments"
                             className="input textarea"
                             rows={4}
+                        />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                        <div className={styles.attachmentsHeader}>
+                            <label className={styles.label}>Attachments</label>
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => setIsAttachmentPickerOpen(true)}
+                            >
+                                + Attach File
+                            </Button>
+                        </div>
+                        <AttachmentList
+                            attachments={newAttachments}
+                            onRemove={(id) => setNewAttachments(prev => prev.filter(a => a.id !== id))}
                         />
                     </div>
 
@@ -287,6 +310,17 @@ export default function DashboardPage() {
                 variant="danger"
                 confirmLabel="Delete"
             />
+
+            {/* Attachment Picker Modal */}
+            {isAttachmentPickerOpen && (
+                <AttachmentPicker
+                    existingAttachments={newAttachments}
+                    onAdd={(attachment) => {
+                        setNewAttachments(prev => [...prev, attachment]);
+                    }}
+                    onClose={() => setIsAttachmentPickerOpen(false)}
+                />
+            )}
         </div >
     );
 }

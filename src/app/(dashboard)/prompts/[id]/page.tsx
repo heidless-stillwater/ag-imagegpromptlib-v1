@@ -352,6 +352,26 @@ export default function PromptDetailPage() {
                         imageUrl: finalImageUrl,
                         imageGeneratedAt: new Date().toISOString(),
                     });
+
+                    // NEW: Automatically save attachments to Media library
+                    if (selectedVersion.attachments && selectedVersion.attachments.length > 0) {
+                        try {
+                            const imageAttachments = selectedVersion.attachments.filter(a => a.type === 'image');
+                            if (imageAttachments.length > 0) {
+                                console.log(`Auto-saving ${imageAttachments.length} attachments to media...`);
+                                await Promise.all(imageAttachments.map(attachment =>
+                                    addMediaImage(attachment.url, {
+                                        promptSetId: promptSet.id,
+                                        versionId: selectedVersion.id
+                                    })
+                                ));
+                            }
+                        } catch (saveErr) {
+                            console.error('Failed to auto-save attachments to media:', saveErr);
+                            // We don't block the main flow if auto-save fails
+                        }
+                    }
+
                     await loadData();
                     setIsGenerateModalOpen(false);
                 }

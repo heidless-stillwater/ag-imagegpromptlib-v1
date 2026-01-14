@@ -143,6 +143,11 @@ export interface GenerationResult {
     fromCache?: boolean;
 }
 
+export interface ImageInput {
+    data: string;      // Base64 data (without data URL prefix)
+    mimeType: string;  // e.g., 'image/png', 'image/jpeg'
+}
+
 export type GenerationMode = 'unsplash' | 'test' | 'live';
 
 /**
@@ -154,10 +159,11 @@ export async function generateImage(
     prompt: string,
     mode: GenerationMode = 'live',
     bypassCache: boolean = false,
-    apiKey?: string
+    apiKey?: string,
+    images?: ImageInput[]
 ): Promise<GenerationResult> {
-    // For 'live' mode, first check cache
-    if (mode === 'live' && !bypassCache) {
+    // For 'live' mode, first check cache (only if no images - multimodal requests are unique)
+    if (mode === 'live' && !bypassCache && (!images || images.length === 0)) {
         const cachedImage = await checkCache(prompt);
         if (cachedImage) {
             return {
@@ -171,9 +177,6 @@ export async function generateImage(
     // Handle 'unsplash' mode - generate a placeholder
     if (mode === 'unsplash') {
         const keywords = prompt.split(' ').slice(0, 5).join(',');
-        const imageUrl = `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800&q=${encodeURIComponent(keywords)}`;
-        // Note: Using a fixed high-quality abstract image as base, but could use source.unsplash.com if it were still reliable
-        // For dynamic placeholders, we'll use a curated high-quality one
         return {
             success: true,
             imageUrl: `https://images.unsplash.com/photo-1633167606207-d840b5070fc2?auto=format&fit=crop&q=80&w=800&q=${encodeURIComponent(keywords)}`,
@@ -190,7 +193,8 @@ export async function generateImage(
             body: JSON.stringify({
                 prompt,
                 testConnection: mode === 'test',
-                apiKey
+                apiKey,
+                images,
             }),
         });
 

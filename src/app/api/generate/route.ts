@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, Part } from '@google/generative-ai';
 
 /*
  * ================================================
@@ -10,15 +10,24 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
  * The client-side code should ALWAYS show a confirmation
  * modal before calling this endpoint.
  * 
- * This route will NEVER be called without explicit
- * user confirmation in the UI.
+ * Supports multimodal requests: text + images
  * ================================================
  */
+
+interface ImageInput {
+    data: string;      // Base64 data (without data URL prefix)
+    mimeType: string;  // e.g., 'image/png', 'image/jpeg'
+}
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { prompt, testConnection, apiKey: userApiKey } = body;
+        const { prompt, testConnection, apiKey: userApiKey, images } = body as {
+            prompt: string;
+            testConnection?: boolean;
+            apiKey?: string;
+            images?: ImageInput[];
+        };
 
         const apiKey = userApiKey || process.env.GEMINI_API_KEY;
 
@@ -33,11 +42,10 @@ export async function POST(request: NextRequest) {
         if (testConnection) {
             const genAI = new GoogleGenerativeAI(apiKey);
             try {
-                // Verify API key and connectivity with the target model
                 await genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
                 return NextResponse.json({
                     success: true,
-                    message: 'NanoBanana connection verified successfully.'
+                    message: 'Connection verified successfully.'
                 });
             } catch (err) {
                 return NextResponse.json(
@@ -56,41 +64,83 @@ export async function POST(request: NextRequest) {
 
         const genAI = new GoogleGenerativeAI(apiKey);
 
-        // Use gemini-2.5-flash-image as the standard model
+        console.log('Using model: gemini-2.5-flash-image');
+        // Reverting to the user's original model which likely has specific Imagen-related configurations
         const model = genAI.getGenerativeModel({
             model: 'gemini-2.5-flash-image',
+            safetySettings: [
+                {
+                    category: 'HARM_CATEGORY_HARASSMENT' as any,
+                    threshold: 'BLOCK_NONE' as any,
+                },
+                {
+                    category: 'HARM_CATEGORY_HATE_SPEECH' as any,
+                    threshold: 'BLOCK_NONE' as any,
+                },
+                {
+                    category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT' as any,
+                    threshold: 'BLOCK_NONE' as any,
+                },
+                {
+                    category: 'HARM_CATEGORY_DANGEROUS_CONTENT' as any,
+                    threshold: 'BLOCK_NONE' as any,
+                },
+            ],
         });
 
-        // Create an enhanced prompt for image generation
-        // We add a unique timestamp to ensure a "fresh" interpretation even for identical prompts
-        const seed = Date.now();
-        const imagePrompt = `Generate a detailed, high-quality image based on this description: ${prompt}. 
-    Make it visually stunning with rich colors and professional composition. [variation_id: ${seed}]`;
+        // Build content parts for multimodal request
+        const parts: Part[] = [];
 
-        const result = await model.generateContent(imagePrompt);
+        // Add image parts first (if any)
+        if (images && images.length > 0) {
+            console.log(`Sending ${images.length} images to Gemini`);
+            for (const img of images) {
+                parts.push({
+                    inlineData: {
+                        mimeType: img.mimeType,
+                        data: img.data,
+                    }
+                });
+            }
+        }
+
+        // Add text prompt
+        const seed = Date.now();
+        const imagePrompt = images && images.length > 0
+            ? `IMPORTANT: You MUST generate a NEW IMAGE in your response. Base the new image on these instructions: ${prompt}. Use the attached image(s) as visual reference/context for the transformation. [variation_id: ${seed}]`
+            : `Generate a detailed, high-quality image based on this description: ${prompt}. Make it visually stunning with rich colors and professional composition. [variation_id: ${seed}]`;
+
+        console.log('Gemini prompt:', imagePrompt);
+
+        parts.push({ text: imagePrompt });
+
+        const result = await model.generateContent(parts);
         const response = result.response;
 
         // Check for image data in the response
         let imageUrl: string | null = null;
 
+        console.log('Gemini candidates:', response.candidates?.length);
+
         for (const candidate of response.candidates || []) {
+            console.log('Candidate parts:', candidate.content?.parts?.length);
             for (const part of candidate.content?.parts || []) {
-                // Check if this part contains image data
                 if ('inlineData' in part && part.inlineData?.mimeType?.startsWith('image/')) {
+                    console.log('Found image in response!');
                     imageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
                     break;
+                } else if ('text' in part && typeof part.text === 'string') {
+                    console.log('Found text in response:', part.text.substring(0, 100));
                 }
             }
             if (imageUrl) break;
         }
 
         if (!imageUrl) {
-            // If no image was generated, return a placeholder for simulation if desired, 
-            // but here we follow the existing logic of reporting failure.
             const textResponse = response.text?.() || 'No response';
             return NextResponse.json({
                 success: false,
-                error: `Image generation output part not found. This model might not support image generation in this environment. Response: ${textResponse.substring(0, 200)}`,
+                error: `Image generation failed. Response: ${textResponse.substring(0, 200)}`,
             });
         }
 

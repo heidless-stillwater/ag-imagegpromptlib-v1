@@ -7,7 +7,7 @@ import { PromptSet, PromptVersion, Category, Attachment } from '@/types';
 import { getPromptSetById, updatePromptSet, addVersion, updateVersion, deleteVersion } from '@/services/promptSets';
 import { getCategories } from '@/services/categories';
 import { getAverageRating, ratePromptSet, getUserRating } from '@/services/ratings';
-import { generateImage, checkCache } from '@/services/gemini';
+import { generateImage, checkCache, ImageInput } from '@/services/gemini';
 import { addMediaImage, checkMediaExists } from '@/services/media';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
@@ -229,19 +229,108 @@ export default function PromptDetailPage() {
         return finalImageUrl;
     };
 
+    const attachmentToImageInput = async (url: string): Promise<ImageInput | null> => {
+        try {
+            const trimmedUrl = url.trim();
+            if (!trimmedUrl) {
+                console.error('attachmentToImageInput: No URL provided');
+                return null;
+            }
+
+            console.log('Converting attachment URL to ImageInput:', trimmedUrl);
+
+            // If already a data URL, extract the base64 and mime type
+            if (trimmedUrl.startsWith('data:')) {
+                console.log('Detected data URL');
+                const match = trimmedUrl.match(/^data:([^;]+);base64,(.+)$/);
+                if (match) {
+                    return {
+                        mimeType: match[1],
+                        data: match[2],
+                    };
+                }
+            }
+
+            // Fetch the image and convert to base64
+            console.log('Fetching attachment from:', trimmedUrl);
+            const response = await fetch(trimmedUrl, {
+                // Using 'cors' mode explicitly as these are usually external Firebase URLs
+                mode: 'cors',
+                credentials: 'omit'
+            });
+
+            if (!response.ok) {
+                console.error(`Fetch failed with status: ${response.status} (${response.statusText}) for URL: ${trimmedUrl}`);
+                return null;
+            }
+
+            const blob = await response.blob();
+            const mimeType = blob.type || 'image/png';
+            console.log('Fetched blob size:', blob.size, 'type:', mimeType);
+
+            // Use alternative base64 conversion if FileReader fails or for better compatibility
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    if (typeof reader.result !== 'string') {
+                        console.error('FileReader result is not a string');
+                        resolve(null);
+                        return;
+                    }
+                    const dataUrl = reader.result;
+                    const base64Match = dataUrl.match(/^data:[^;]+;base64,(.+)$/);
+                    if (base64Match) {
+                        console.log('Successfully converted to base64');
+                        resolve({
+                            mimeType,
+                            data: base64Match[1],
+                        });
+                    } else {
+                        console.error('Failed to match base64 in dataUrl');
+                        resolve(null);
+                    }
+                };
+                reader.onerror = (e) => {
+                    console.error('FileReader error:', e);
+                    resolve(null);
+                };
+                try {
+                    reader.readAsDataURL(blob);
+                } catch (readErr) {
+                    console.error('Error calling readAsDataURL:', readErr);
+                    resolve(null);
+                }
+            });
+        } catch (err) {
+            console.error('Failed to convert attachment to ImageInput:', err);
+            return null;
+        }
+    };
+
     const handleGenerate = async (mode: 'unsplash' | 'test' | 'live' = 'live') => {
         if (!selectedVersion || !promptSet) return;
 
-        setIsGenerating(mode === 'test' ? false : true); // Show spinner for images, but maybe just button loading for test
+        setIsGenerating(mode === 'test' ? false : true);
         setGenerateError('');
         const isTest = mode === 'test';
 
         try {
+            // Convert attachments to ImageInput format for multimodal generation
+            let images: ImageInput[] | undefined;
+            if (selectedVersion.attachments && selectedVersion.attachments.length > 0 && mode === 'live') {
+                const imagePromises = selectedVersion.attachments
+                    .filter(a => a.type === 'image')
+                    .map(a => attachmentToImageInput(a.url));
+                const results = await Promise.all(imagePromises);
+                images = results.filter((img): img is ImageInput => img !== null);
+            }
+
             const result = await generateImage(
                 selectedVersion.promptText,
                 mode,
                 isBypassingCache,
-                user?.settings?.geminiApiKey
+                user?.settings?.geminiApiKey,
+                images
             );
 
             if (result.success) {
@@ -249,7 +338,7 @@ export default function PromptDetailPage() {
                     setFeedback({
                         isOpen: true,
                         title: 'Connection Verified',
-                        message: 'NanoBanana connection verified successfully! (Zero tokens used)',
+                        message: 'Connection verified successfully! (Zero tokens used)',
                         variant: 'success'
                     });
                     setIsGenerateModalOpen(false);

@@ -150,7 +150,8 @@ export async function addVersion(
     promptSetId: string,
     promptText: string,
     notes?: string,
-    attachments?: Attachment[]
+    attachments?: Attachment[],
+    preferredBackgroundStyle?: string
 ): Promise<PromptVersion | null> {
     const set = await getPromptSetById(promptSetId);
     if (!set) return null;
@@ -165,6 +166,7 @@ export async function addVersion(
         promptText,
         notes: notes || '',
         attachments: attachments || [],
+        preferredBackgroundStyle,
         createdAt: now,
         updatedAt: now,
     };

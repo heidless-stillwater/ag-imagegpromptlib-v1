@@ -20,6 +20,15 @@ import AttachmentPicker from '@/components/prompts/AttachmentPicker';
 import AttachmentList from '@/components/prompts/AttachmentList';
 import styles from './page.module.css';
 
+const BACKGROUND_STYLES = [
+    { id: 'default', label: 'Default', description: '' },
+    { id: 'dark', label: 'Dark', description: 'against a dark textured wall' },
+    { id: 'nature', label: 'Nature', description: 'in a natural forest setting' },
+    { id: 'urban', label: 'Urban', description: 'in a moody urban street set' },
+    { id: 'studio', label: 'Studio', description: 'in a professional studio set with cinematic lighting' },
+    { id: 'bokeh', label: 'Bokeh', description: 'with a heavily blurred cinematic bokeh background' },
+];
+
 export default function PromptDetailPage() {
     const params = useParams();
     const router = useRouter();
@@ -51,12 +60,15 @@ export default function PromptDetailPage() {
     const [editVersionPrompt, setEditVersionPrompt] = useState('');
     const [editVersionNotes, setEditVersionNotes] = useState('');
     const [editVersionAttachments, setEditVersionAttachments] = useState<Attachment[]>([]);
+    const [newVersionBackgroundStyle, setNewVersionBackgroundStyle] = useState('default');
+    const [editVersionBackgroundStyle, setEditVersionBackgroundStyle] = useState('default');
 
     // Generation state
     const [isGenerating, setIsGenerating] = useState(false);
     const [generateError, setGenerateError] = useState('');
     const [cachedImage, setCachedImage] = useState<string | null>(null);
     const [isBypassingCache, setIsBypassingCache] = useState(false);
+    const [selectedBackgroundStyle, setSelectedBackgroundStyle] = useState('default');
 
     // Rating state
     const [averageRating, setAverageRating] = useState({ average: 0, count: 0 });
@@ -168,7 +180,13 @@ export default function PromptDetailPage() {
     const handleAddVersion = async () => {
         if (!promptSet || !newVersionPrompt.trim()) return;
 
-        const version = await addVersion(promptSet.id, newVersionPrompt, newVersionNotes, newVersionAttachments);
+        const version = await addVersion(
+            promptSet.id,
+            newVersionPrompt,
+            newVersionNotes,
+            newVersionAttachments,
+            newVersionBackgroundStyle
+        );
         await loadData();
         if (version) {
             setSelectedVersion(version);
@@ -177,6 +195,7 @@ export default function PromptDetailPage() {
         setNewVersionPrompt('');
         setNewVersionNotes('');
         setNewVersionAttachments([]);
+        setNewVersionBackgroundStyle('default');
     };
 
     const handleDeleteVersion = (versionId: string) => {
@@ -200,6 +219,7 @@ export default function PromptDetailPage() {
         setEditVersionPrompt(version.promptText);
         setEditVersionNotes(version.notes || '');
         setEditVersionAttachments(version.attachments || []);
+        setEditVersionBackgroundStyle(version.preferredBackgroundStyle || 'default');
         setIsEditVersionModalOpen(true);
     };
 
@@ -210,6 +230,7 @@ export default function PromptDetailPage() {
             promptText: editVersionPrompt,
             notes: editVersionNotes,
             attachments: editVersionAttachments,
+            preferredBackgroundStyle: editVersionBackgroundStyle,
         });
 
         await loadData();
@@ -231,6 +252,7 @@ export default function PromptDetailPage() {
         const cached = await checkCache(version.promptText);
         setCachedImage(cached);
         setIsBypassingCache(false);
+        setSelectedBackgroundStyle(version.preferredBackgroundStyle || 'default');
         setIsGenerateModalOpen(true);
     };
 
@@ -355,7 +377,8 @@ export default function PromptDetailPage() {
                 mode,
                 isBypassingCache,
                 user?.settings?.geminiApiKey,
-                images
+                images,
+                selectedBackgroundStyle !== 'default' ? BACKGROUND_STYLES.find(s => s.id === selectedBackgroundStyle)?.description : undefined
             );
 
             if (result.success) {
@@ -504,6 +527,7 @@ export default function PromptDetailPage() {
         }
         setNewVersionNotes('');
         setNewVersionAttachments([]);
+        setNewVersionBackgroundStyle('default');
         setIsVersionModalOpen(true);
     };
 
@@ -751,6 +775,20 @@ export default function PromptDetailPage() {
                         />
                     </div>
                     <div className={styles.formGroup}>
+                        <label>Background Style</label>
+                        <select
+                            value={newVersionBackgroundStyle}
+                            onChange={e => setNewVersionBackgroundStyle(e.target.value)}
+                            className="input select"
+                        >
+                            {BACKGROUND_STYLES.map(style => (
+                                <option key={style.id} value={style.id}>
+                                    {style.label} {style.description ? ` - ${style.description}` : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className={styles.formGroup}>
                         <div className={styles.attachmentsHeader}>
                             <label>Attachments</label>
                             <Button
@@ -797,6 +835,20 @@ export default function PromptDetailPage() {
                             className="input textarea"
                             placeholder="Any notes about this version..."
                         />
+                    </div>
+                    <div className={styles.formGroup}>
+                        <label>Background Style</label>
+                        <select
+                            value={editVersionBackgroundStyle}
+                            onChange={e => setEditVersionBackgroundStyle(e.target.value)}
+                            className="input select"
+                        >
+                            {BACKGROUND_STYLES.map(style => (
+                                <option key={style.id} value={style.id}>
+                                    {style.label} {style.description ? ` - ${style.description}` : ''}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                     <div className={styles.formGroup}>
                         <div className={styles.attachmentsHeader}>
@@ -857,9 +909,27 @@ export default function PromptDetailPage() {
                         </>
                     ) : (
                         <>
-                            <div className={styles.warning}>
+                            <div className={styles.warning} style={{ marginBottom: 'var(--space-4)' }}>
                                 <p><strong>This will make an API call to Gemini.</strong></p>
                                 <p>Please confirm you want to generate an image with the following prompt:</p>
+                            </div>
+
+                            <div className={styles.formGroup} style={{ marginBottom: 'var(--space-4)' }}>
+                                <label style={{ marginBottom: 'var(--space-1)', display: 'block', fontSize: 'var(--font-sm)', fontWeight: '500' }}>
+                                    Background Style
+                                </label>
+                                <select
+                                    value={selectedBackgroundStyle}
+                                    onChange={e => setSelectedBackgroundStyle(e.target.value)}
+                                    className="input select"
+                                    style={{ width: '100%', padding: 'var(--space-2)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-alt)', color: 'var(--color-text)' }}
+                                >
+                                    {BACKGROUND_STYLES.map(style => (
+                                        <option key={style.id} value={style.id}>
+                                            {style.label} {style.description ? ` - ${style.description}` : ''}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div className={styles.optionsGrid}>

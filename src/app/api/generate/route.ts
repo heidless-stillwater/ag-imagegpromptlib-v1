@@ -106,9 +106,10 @@ export async function POST(request: NextRequest) {
 
         // Add text prompt
         const seed = Date.now();
+        const styleInstruction = body.backgroundStyle ? `, ${body.backgroundStyle}` : '';
         const imagePrompt = images && images.length > 0
-            ? `IMPORTANT: You MUST generate a NEW IMAGE in your response. Base the new image on these instructions: ${prompt}. Use the attached image(s) as visual reference/context for the transformation. [variation_id: ${seed}]`
-            : `Generate a detailed, high-quality image based on this description: ${prompt}. Make it visually stunning with rich colors and professional composition. [variation_id: ${seed}]`;
+            ? `IMPORTANT: You MUST generate a NEW IMAGE in your response. Base the new image on these instructions: ${prompt}${styleInstruction}. Use the attached image(s) as visual reference/context for the transformation. [variation_id: ${seed}]`
+            : `Generate a detailed, high-quality image based on this description: ${prompt}${styleInstruction}. Make it visually stunning with rich colors and professional composition. [variation_id: ${seed}]`;
 
         console.log('Gemini prompt:', imagePrompt);
 

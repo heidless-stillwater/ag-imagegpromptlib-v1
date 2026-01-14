@@ -55,6 +55,7 @@ export interface PromptVersion {
     imageGeneratedAt?: string;
     notes?: string;
     attachments?: Attachment[]; // File attachments for this version
+    preferredBackgroundStyle?: string; // NEW: Persisted background style preference
     createdAt: string;
     updatedAt: string;
 }

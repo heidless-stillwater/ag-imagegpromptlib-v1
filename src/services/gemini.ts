@@ -160,7 +160,8 @@ export async function generateImage(
     mode: GenerationMode = 'live',
     bypassCache: boolean = false,
     apiKey?: string,
-    images?: ImageInput[]
+    images?: ImageInput[],
+    backgroundStyle?: string
 ): Promise<GenerationResult> {
     // For 'live' mode, first check cache (only if no images - multimodal requests are unique)
     if (mode === 'live' && !bypassCache && (!images || images.length === 0)) {
@@ -195,6 +196,7 @@ export async function generateImage(
                 testConnection: mode === 'test',
                 apiKey,
                 images,
+                backgroundStyle,
             }),
         });
 

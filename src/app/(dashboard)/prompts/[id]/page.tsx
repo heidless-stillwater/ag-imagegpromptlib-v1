@@ -37,6 +37,8 @@ export default function PromptDetailPage() {
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
     const [isAttachmentPickerOpen, setIsAttachmentPickerOpen] = useState(false);
+    const [isEditVersionModalOpen, setIsEditVersionModalOpen] = useState(false);
+    const [attachmentPickerTarget, setAttachmentPickerTarget] = useState<'new' | 'edit-version'>('new');
 
     // Form state
     const [editTitle, setEditTitle] = useState('');
@@ -46,6 +48,9 @@ export default function PromptDetailPage() {
     const [newVersionPrompt, setNewVersionPrompt] = useState('');
     const [newVersionNotes, setNewVersionNotes] = useState('');
     const [newVersionAttachments, setNewVersionAttachments] = useState<Attachment[]>([]);
+    const [editVersionPrompt, setEditVersionPrompt] = useState('');
+    const [editVersionNotes, setEditVersionNotes] = useState('');
+    const [editVersionAttachments, setEditVersionAttachments] = useState<Attachment[]>([]);
 
     // Generation state
     const [isGenerating, setIsGenerating] = useState(false);
@@ -189,6 +194,26 @@ export default function PromptDetailPage() {
                 setConfirmAction(prev => ({ ...prev, isOpen: false }));
             }
         });
+    };
+
+    const handleOpenEditVersionModal = (version: PromptVersion) => {
+        setEditVersionPrompt(version.promptText);
+        setEditVersionNotes(version.notes || '');
+        setEditVersionAttachments(version.attachments || []);
+        setIsEditVersionModalOpen(true);
+    };
+
+    const handleSaveVersionEdit = async () => {
+        if (!promptSet || !selectedVersion || !editVersionPrompt.trim()) return;
+
+        await updateVersion(promptSet.id, selectedVersion.id, {
+            promptText: editVersionPrompt,
+            notes: editVersionNotes,
+            attachments: editVersionAttachments,
+        });
+
+        await loadData();
+        setIsEditVersionModalOpen(false);
     };
 
     const handleRating = async (score: number) => {
@@ -561,6 +586,13 @@ export default function PromptDetailPage() {
                                         >
                                             Delete
                                         </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="secondary"
+                                            onClick={() => handleOpenEditVersionModal(selectedVersion)}
+                                        >
+                                            Edit
+                                        </Button>
                                     </div>
                                 </div>
 
@@ -724,7 +756,10 @@ export default function PromptDetailPage() {
                             <Button
                                 size="sm"
                                 variant="secondary"
-                                onClick={() => setIsAttachmentPickerOpen(true)}
+                                onClick={() => {
+                                    setAttachmentPickerTarget('new');
+                                    setIsAttachmentPickerOpen(true);
+                                }}
                             >
                                 + Attach File
                             </Button>
@@ -737,6 +772,54 @@ export default function PromptDetailPage() {
                     <div className={styles.formActions}>
                         <Button variant="secondary" onClick={() => setIsVersionModalOpen(false)}>Cancel</Button>
                         <Button onClick={handleAddVersion} disabled={!newVersionPrompt.trim()}>Add Version</Button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Edit Version Modal */}
+            <Modal isOpen={isEditVersionModalOpen} onClose={() => setIsEditVersionModalOpen(false)} title="Edit Version">
+                <div className={styles.form}>
+                    <div className={styles.formGroup}>
+                        <label>Prompt Text *</label>
+                        <textarea
+                            value={editVersionPrompt}
+                            onChange={e => setEditVersionPrompt(e.target.value)}
+                            className="input textarea"
+                            rows={5}
+                            placeholder="Enter your prompt... Use {{file:name}} to reference attachments"
+                        />
+                    </div>
+                    <div className={styles.formGroup}>
+                        <label>Notes</label>
+                        <textarea
+                            value={editVersionNotes}
+                            onChange={e => setEditVersionNotes(e.target.value)}
+                            className="input textarea"
+                            placeholder="Any notes about this version..."
+                        />
+                    </div>
+                    <div className={styles.formGroup}>
+                        <div className={styles.attachmentsHeader}>
+                            <label>Attachments</label>
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => {
+                                    setAttachmentPickerTarget('edit-version');
+                                    setIsAttachmentPickerOpen(true);
+                                }}
+                            >
+                                + Attach File
+                            </Button>
+                        </div>
+                        <AttachmentList
+                            attachments={editVersionAttachments}
+                            onRemove={(id) => setEditVersionAttachments(prev => prev.filter(a => a.id !== id))}
+                        />
+                    </div>
+                    <div className={styles.formActions}>
+                        <Button variant="secondary" onClick={() => setIsEditVersionModalOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSaveVersionEdit} disabled={!editVersionPrompt.trim()}>Save Changes</Button>
                     </div>
                 </div>
             </Modal>
@@ -873,9 +956,13 @@ export default function PromptDetailPage() {
             {/* Attachment Picker Modal */}
             {isAttachmentPickerOpen && (
                 <AttachmentPicker
-                    existingAttachments={newVersionAttachments}
+                    existingAttachments={attachmentPickerTarget === 'new' ? newVersionAttachments : editVersionAttachments}
                     onAdd={(attachment) => {
-                        setNewVersionAttachments(prev => [...prev, attachment]);
+                        if (attachmentPickerTarget === 'new') {
+                            setNewVersionAttachments(prev => [...prev, attachment]);
+                        } else if (attachmentPickerTarget === 'edit-version') {
+                            setEditVersionAttachments(prev => [...prev, attachment]);
+                        }
                     }}
                     onClose={() => setIsAttachmentPickerOpen(false)}
                 />

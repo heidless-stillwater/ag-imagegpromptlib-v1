@@ -12,7 +12,7 @@ import {
     Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { PromptSet, PromptVersion } from '@/types';
+import { PromptSet, PromptVersion, Attachment } from '@/types';
 import { getCurrentUser, isAdmin } from './auth';
 import { addMediaImage } from './media';
 import { generateId } from './storage';
@@ -77,6 +77,7 @@ export async function createPromptSet(data: {
     categoryId?: string;
     notes?: string;
     initialPrompt?: string;
+    initialAttachments?: Attachment[];
 }): Promise<PromptSet | null> {
     const currentUser = await getCurrentUser();
     if (!currentUser) return null;
@@ -90,6 +91,7 @@ export async function createPromptSet(data: {
             promptSetId: id,
             versionNumber: 1,
             promptText: data.initialPrompt,
+            attachments: data.initialAttachments || [],
             createdAt: now,
             updatedAt: now,
         }]
@@ -144,7 +146,12 @@ export async function deletePromptSet(id: string): Promise<boolean> {
 /**
  * Add a new version to a prompt set
  */
-export async function addVersion(promptSetId: string, promptText: string, notes?: string): Promise<PromptVersion | null> {
+export async function addVersion(
+    promptSetId: string,
+    promptText: string,
+    notes?: string,
+    attachments?: Attachment[]
+): Promise<PromptVersion | null> {
     const set = await getPromptSetById(promptSetId);
     if (!set) return null;
 
@@ -157,6 +164,7 @@ export async function addVersion(promptSetId: string, promptText: string, notes?
         versionNumber: maxVersionNumber + 1,
         promptText,
         notes: notes || '',
+        attachments: attachments || [],
         createdAt: now,
         updatedAt: now,
     };

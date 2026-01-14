@@ -54,8 +54,25 @@ export interface PromptVersion {
     imageUrl?: string; // Base64 data URL or external URL
     imageGeneratedAt?: string;
     notes?: string;
+    attachments?: Attachment[]; // File attachments for this version
     createdAt: string;
     updatedAt: string;
+}
+
+// Attachment types
+export type AttachmentSource = 'upload' | 'media' | 'promptset_version';
+
+export interface Attachment {
+    id: string;
+    name: string;             // Display name / reference key
+    type: 'image' | 'file';   // File category
+    mimeType: string;         // e.g., 'image/png', 'application/pdf'
+    url: string;              // Storage URL or data URL
+    source: AttachmentSource;
+    sourceId?: string;        // Media ID or PromptVersion ID for references
+    sourcePromptSetId?: string; // PromptSet ID if from version
+    sourcePromptSetTitle?: string; // Title of source PromptSet for display
+    createdAt: string;
 }
 
 // Prompt set types

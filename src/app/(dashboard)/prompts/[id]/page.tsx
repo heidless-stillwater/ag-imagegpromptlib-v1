@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { PromptSet, PromptVersion, Category } from '@/types';
+import { PromptSet, PromptVersion, Category, Attachment } from '@/types';
 import { getPromptSetById, updatePromptSet, addVersion, updateVersion, deleteVersion } from '@/services/promptSets';
 import { getCategories } from '@/services/categories';
 import { getAverageRating, ratePromptSet, getUserRating } from '@/services/ratings';
@@ -16,6 +16,8 @@ import Modal from '@/components/ui/Modal';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import StarRating from '@/components/ratings/StarRating';
 import ShareModal from '@/components/shares/ShareModal';
+import AttachmentPicker from '@/components/prompts/AttachmentPicker';
+import AttachmentList from '@/components/prompts/AttachmentList';
 import styles from './page.module.css';
 
 export default function PromptDetailPage() {
@@ -34,6 +36,7 @@ export default function PromptDetailPage() {
     const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+    const [isAttachmentPickerOpen, setIsAttachmentPickerOpen] = useState(false);
 
     // Form state
     const [editTitle, setEditTitle] = useState('');
@@ -42,6 +45,7 @@ export default function PromptDetailPage() {
     const [editNotes, setEditNotes] = useState('');
     const [newVersionPrompt, setNewVersionPrompt] = useState('');
     const [newVersionNotes, setNewVersionNotes] = useState('');
+    const [newVersionAttachments, setNewVersionAttachments] = useState<Attachment[]>([]);
 
     // Generation state
     const [isGenerating, setIsGenerating] = useState(false);
@@ -159,7 +163,7 @@ export default function PromptDetailPage() {
     const handleAddVersion = async () => {
         if (!promptSet || !newVersionPrompt.trim()) return;
 
-        const version = await addVersion(promptSet.id, newVersionPrompt, newVersionNotes);
+        const version = await addVersion(promptSet.id, newVersionPrompt, newVersionNotes, newVersionAttachments);
         await loadData();
         if (version) {
             setSelectedVersion(version);
@@ -167,6 +171,7 @@ export default function PromptDetailPage() {
         setIsVersionModalOpen(false);
         setNewVersionPrompt('');
         setNewVersionNotes('');
+        setNewVersionAttachments([]);
     };
 
     const handleDeleteVersion = (versionId: string) => {
@@ -364,6 +369,7 @@ export default function PromptDetailPage() {
             setNewVersionPrompt('');
         }
         setNewVersionNotes('');
+        setNewVersionAttachments([]);
         setIsVersionModalOpen(true);
     };
 
@@ -467,6 +473,15 @@ export default function PromptDetailPage() {
                                     <div className={styles.notesBox}>
                                         <label>Notes</label>
                                         <p>{selectedVersion.notes}</p>
+                                    </div>
+                                )}
+
+                                {selectedVersion.attachments && selectedVersion.attachments.length > 0 && (
+                                    <div className={styles.attachmentsBox}>
+                                        <AttachmentList
+                                            attachments={selectedVersion.attachments}
+                                            readonly
+                                        />
                                     </div>
                                 )}
 
@@ -582,7 +597,7 @@ export default function PromptDetailPage() {
                             onChange={e => setNewVersionPrompt(e.target.value)}
                             className="input textarea"
                             rows={5}
-                            placeholder="Enter your prompt..."
+                            placeholder="Enter your prompt... Use {{file:name}} to reference attachments"
                         />
                     </div>
                     <div className={styles.formGroup}>
@@ -592,6 +607,22 @@ export default function PromptDetailPage() {
                             onChange={e => setNewVersionNotes(e.target.value)}
                             className="input textarea"
                             placeholder="Any notes about this version..."
+                        />
+                    </div>
+                    <div className={styles.formGroup}>
+                        <div className={styles.attachmentsHeader}>
+                            <label>Attachments</label>
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => setIsAttachmentPickerOpen(true)}
+                            >
+                                + Attach File
+                            </Button>
+                        </div>
+                        <AttachmentList
+                            attachments={newVersionAttachments}
+                            onRemove={(id) => setNewVersionAttachments(prev => prev.filter(a => a.id !== id))}
                         />
                     </div>
                     <div className={styles.formActions}>
@@ -729,6 +760,17 @@ export default function PromptDetailPage() {
                 confirmLabel="Got It.."
                 cancelLabel=""
             />
+
+            {/* Attachment Picker Modal */}
+            {isAttachmentPickerOpen && (
+                <AttachmentPicker
+                    existingAttachments={newVersionAttachments}
+                    onAdd={(attachment) => {
+                        setNewVersionAttachments(prev => [...prev, attachment]);
+                    }}
+                    onClose={() => setIsAttachmentPickerOpen(false)}
+                />
+            )}
         </div>
     );
 }

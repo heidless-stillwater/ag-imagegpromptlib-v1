@@ -15,6 +15,15 @@ import AttachmentPicker from '@/components/prompts/AttachmentPicker';
 import AttachmentList from '@/components/prompts/AttachmentList';
 import styles from './page.module.css';
 
+const BACKGROUND_STYLES = [
+    { id: 'default', label: 'Default', description: '' },
+    { id: 'dark', label: 'Dark', description: 'against a dark textured wall' },
+    { id: 'nature', label: 'Nature', description: 'in a natural forest setting' },
+    { id: 'urban', label: 'Urban', description: 'in a moody urban street set' },
+    { id: 'studio', label: 'Studio', description: 'in a professional studio set with cinematic lighting' },
+    { id: 'bokeh', label: 'Bokeh', description: 'with a heavily blurred cinematic bokeh background' },
+];
+
 export default function DashboardPage() {
     const { user, isAdmin } = useAuth();
     const router = useRouter();
@@ -34,6 +43,7 @@ export default function DashboardPage() {
     const [newCategoryId, setNewCategoryId] = useState('');
     const [newPrompt, setNewPrompt] = useState('');
     const [newAttachments, setNewAttachments] = useState<Attachment[]>([]);
+    const [newBackgroundStyle, setNewBackgroundStyle] = useState('default');
     const [isAttachmentPickerOpen, setIsAttachmentPickerOpen] = useState(false);
 
     const [isLoading, setIsLoading] = useState(true);
@@ -68,6 +78,7 @@ export default function DashboardPage() {
                 categoryId: newCategoryId || undefined,
                 initialPrompt: newPrompt || undefined,
                 initialAttachments: newAttachments.length > 0 ? newAttachments : undefined,
+                initialBackgroundStyle: newBackgroundStyle,
             });
 
             if (created) {
@@ -102,6 +113,7 @@ export default function DashboardPage() {
         setNewCategoryId('');
         setNewPrompt('');
         setNewAttachments([]);
+        setNewBackgroundStyle('default');
     };
 
     // Filter prompt sets
@@ -257,6 +269,20 @@ export default function DashboardPage() {
                             className="input textarea"
                             rows={4}
                         />
+                    </div>
+                    <div className={styles.formGroup}>
+                        <label className={styles.label}>Background Style</label>
+                        <select
+                            value={newBackgroundStyle}
+                            onChange={e => setNewBackgroundStyle(e.target.value)}
+                            className="input select"
+                        >
+                            {BACKGROUND_STYLES.map(style => (
+                                <option key={style.id} value={style.id}>
+                                    {style.label} {style.description ? ` - ${style.description}` : ''}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     <div className={styles.formGroup}>

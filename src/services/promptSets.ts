@@ -78,6 +78,7 @@ export async function createPromptSet(data: {
     notes?: string;
     initialPrompt?: string;
     initialAttachments?: Attachment[];
+    initialBackgroundStyle?: string;
 }): Promise<PromptSet | null> {
     const currentUser = await getCurrentUser();
     if (!currentUser) return null;
@@ -92,6 +93,7 @@ export async function createPromptSet(data: {
             versionNumber: 1,
             promptText: data.initialPrompt,
             attachments: data.initialAttachments || [],
+            preferredBackgroundStyle: data.initialBackgroundStyle,
             createdAt: now,
             updatedAt: now,
         }]

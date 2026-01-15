@@ -139,6 +139,7 @@ export async function getCacheStats(): Promise<{ count: number; oldestEntry?: st
 export interface GenerationResult {
     success: boolean;
     imageUrl?: string;
+    videoUrl?: string; // Support for video results
     error?: string;
     fromCache?: boolean;
 }
@@ -230,6 +231,127 @@ export async function generateImage(
         return {
             success: false,
             error: 'No image returned from API',
+        };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error occurred',
+        };
+    }
+}
+
+/**
+ * Helper to wait for a specified duration
+ */
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Generate a video using Veo 3
+ * @param prompt The video prompt
+ * @param apiKey Optional user API key
+ * @param onProgress Optional callback for generation progress (0-100)
+ */
+export async function generateVideo(
+    prompt: string,
+    apiKey?: string,
+    onProgress?: (progress: number) => void
+): Promise<GenerationResult> {
+    try {
+        // 1. Initial request to start generation
+        const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                prompt,
+                type: 'video', // Specify video generation
+                apiKey,
+            }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            return {
+                success: false,
+                error: data.error || 'Failed to start video generation',
+            };
+        }
+
+        if (!data.operationName) {
+            return {
+                success: false,
+                error: 'No operation name returned for video generation',
+            };
+        }
+
+        const operationName = data.operationName;
+        console.log('Video generation started. Operation:', operationName);
+
+        // 2. Polling loop
+        const maxWaitTime = 5 * 60 * 1000; // 5 minutes max
+        const pollInterval = 10000; // 10 seconds
+        const startTime = Date.now();
+
+        while (Date.now() - startTime < maxWaitTime) {
+            await delay(pollInterval);
+
+            console.log(`Polling video status... (${Math.round((Date.now() - startTime) / 1000)}s elapsed)`);
+
+            const statusRes = await fetch('/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    type: 'video-status',
+                    operationName,
+                    apiKey,
+                }),
+            });
+
+            const statusData = await statusRes.json();
+
+            if (!statusRes.ok) {
+                console.error('Polling error:', statusData.error);
+                // We keep polling in case it's a transient error
+                continue;
+            }
+
+            if (statusData.done) {
+                // Set progress to 100 when done
+                if (onProgress) onProgress(100);
+
+                if (statusData.videoUrl) {
+                    return {
+                        success: true,
+                        videoUrl: statusData.videoUrl,
+                        fromCache: false,
+                    };
+                } else if (statusData.error) {
+                    return {
+                        success: false,
+                        error: statusData.error,
+                    };
+                } else {
+                    return {
+                        success: false,
+                        error: 'Video generation finished with no result.',
+                    };
+                }
+            }
+
+            // Still processing...
+            if (onProgress && typeof statusData.progress === 'number') {
+                onProgress(statusData.progress);
+            }
+            console.log(`Still processing: ${statusData.progress || 0}%`);
+        }
+
+        return {
+            success: false,
+            error: 'Video generation timed out after 5 minutes.',
         };
     } catch (error) {
         return {

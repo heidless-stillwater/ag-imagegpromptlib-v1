@@ -7,7 +7,7 @@ import { PromptSet, PromptVersion, Category, Attachment } from '@/types';
 import { getPromptSetById, updatePromptSet, addVersion, updateVersion, deleteVersion } from '@/services/promptSets';
 import { getCategories } from '@/services/categories';
 import { getAverageRating, ratePromptSet, getUserRating } from '@/services/ratings';
-import { generateImage, checkCache, ImageInput } from '@/services/gemini';
+import { generateImage, generateVideo, checkCache, ImageInput } from '@/services/gemini';
 import { addMediaImage, checkMediaExists } from '@/services/media';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
@@ -69,6 +69,10 @@ export default function PromptDetailPage() {
     const [cachedImage, setCachedImage] = useState<string | null>(null);
     const [isBypassingCache, setIsBypassingCache] = useState(false);
     const [selectedBackgroundStyle, setSelectedBackgroundStyle] = useState('default');
+    const [isVideoConfirmModalOpen, setIsVideoConfirmModalOpen] = useState(false);
+    const [generatingVideo, setGeneratingVideo] = useState(false);
+    const [videoProgress, setVideoProgress] = useState(0);
+    const [videoError, setVideoError] = useState('');
 
     // Rating state
     const [averageRating, setAverageRating] = useState({ average: 0, count: 0 });
@@ -434,6 +438,63 @@ export default function PromptDetailPage() {
         }
     };
 
+    const handleGenerateVideo = async () => {
+        if (!selectedVersion) return;
+
+        setGeneratingVideo(true);
+        setVideoProgress(0);
+        setVideoError('');
+        setIsVideoConfirmModalOpen(false);
+
+        try {
+            const result = await generateVideo(
+                selectedVersion.promptText,
+                user?.settings?.geminiApiKey,
+                (progress) => setVideoProgress(progress)
+            );
+
+            if (result.success && result.videoUrl) {
+                await updateVersion(promptSetId as string, selectedVersion.id, {
+                    videoUrl: result.videoUrl,
+                    videoGeneratedAt: new Date().toISOString(),
+                    tags: ['veo 3', 'video']
+                });
+                await loadData();
+            } else {
+                setVideoError(result.error || 'Failed to generate video');
+            }
+        } catch (error) {
+            console.error('Video generation error:', error);
+            setVideoError(error instanceof Error ? error.message : 'Unknown error');
+        } finally {
+            setGeneratingVideo(false);
+        }
+    };
+
+    const handleRemoveVideo = async () => {
+        if (!selectedVersion || !promptSet) return;
+
+        setConfirmAction({
+            isOpen: true,
+            title: 'Remove Video',
+            message: 'Are you sure you want to remove this video from the version?',
+            variant: 'danger',
+            confirmLabel: 'Remove',
+            onConfirm: async () => {
+                setConfirmAction(prev => ({ ...prev, isOpen: false }));
+                try {
+                    await updateVersion(promptSetId as string, selectedVersion.id, {
+                        videoUrl: undefined,
+                        videoGeneratedAt: undefined,
+                    });
+                    await loadData();
+                } catch (error) {
+                    console.error('Failed to remove video:', error);
+                }
+            }
+        });
+    };
+
     const handleRemoveImage = () => {
         if (!selectedVersion || !promptSet) return;
 
@@ -605,6 +666,21 @@ export default function PromptDetailPage() {
                                         </Button>
                                         <Button
                                             size="sm"
+                                            variant="secondary"
+                                            onClick={() => setIsVideoConfirmModalOpen(true)}
+                                            disabled={generatingVideo}
+                                        >
+                                            {generatingVideo ? (
+                                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                    <span className={styles.btnSpinner} />
+                                                    {videoProgress > 0 ? `Generating (${videoProgress}%)` : 'Processing...'}
+                                                </div>
+                                            ) : (
+                                                <>📹 Generate Video</>
+                                            )}
+                                        </Button>
+                                        <Button
+                                            size="sm"
                                             variant="danger"
                                             onClick={() => handleDeleteVersion(selectedVersion.id)}
                                         >
@@ -619,6 +695,16 @@ export default function PromptDetailPage() {
                                         </Button>
                                     </div>
                                 </div>
+
+                                {selectedVersion.tags && selectedVersion.tags.length > 0 && (
+                                    <div className={styles.tagContainer}>
+                                        {selectedVersion.tags.map(tag => (
+                                            <span key={tag} className={styles.tag}>
+                                                {tag}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
 
                                 <div className={styles.promptBox}>
                                     <div className={styles.promptHeader}>
@@ -687,6 +773,38 @@ export default function PromptDetailPage() {
                                                 ? new Date(selectedVersion.imageGeneratedAt).toLocaleString()
                                                 : ''}
                                         </span>
+                                    </div>
+                                )}
+
+                                {selectedVersion.videoUrl && (
+                                    <div className={styles.imageBox}>
+                                        <label>Generated Video</label>
+                                        <video
+                                            src={selectedVersion.videoUrl}
+                                            controls
+                                            className={styles.generatedImage}
+                                            style={{ maxHeight: '400px' }}
+                                        />
+                                        <div className={styles.imageActions}>
+                                            <Button
+                                                size="sm"
+                                                variant="danger"
+                                                onClick={handleRemoveVideo}
+                                            >
+                                                Remove Video
+                                            </Button>
+                                        </div>
+                                        <span className={styles.imageCaption}>
+                                            Generated {selectedVersion.videoGeneratedAt
+                                                ? new Date(selectedVersion.videoGeneratedAt).toLocaleString()
+                                                : ''}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {videoError && (
+                                    <div className={styles.error} style={{ marginTop: '1rem' }}>
+                                        {videoError}
                                     </div>
                                 )}
                             </div>
@@ -1037,6 +1155,28 @@ export default function PromptDetailPage() {
                     onClose={() => setIsAttachmentPickerOpen(false)}
                 />
             )}
+
+            {/* Confirmation Modal for Video */}
+            <ConfirmationModal
+                isOpen={isVideoConfirmModalOpen}
+                onClose={() => setIsVideoConfirmModalOpen(false)}
+                onConfirm={handleGenerateVideo}
+                title="Generate Video with Veo 3"
+                message={
+                    <div>
+                        <p>Are you sure you want to generate a video using Veo 3?</p>
+                        <p style={{ marginTop: '0.5rem', fontWeight: 'bold' }}>Prompt:</p>
+                        <p style={{ fontStyle: 'italic', padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
+                            {selectedVersion?.promptText}
+                        </p>
+                        <p style={{ marginTop: '0.5rem', fontSize: 'var(--font-xs)', opacity: 0.7 }}>
+                            This will use the <code>veo-3.1-fast-generate-preview</code> model.
+                        </p>
+                    </div>
+                }
+                variant="success"
+                confirmLabel="Generate Video"
+            />
         </div>
     );
 }

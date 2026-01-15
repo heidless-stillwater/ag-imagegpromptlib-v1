@@ -53,9 +53,12 @@ export interface PromptVersion {
     promptText: string;
     imageUrl?: string; // Base64 data URL or external URL
     imageGeneratedAt?: string;
+    videoUrl?: string; // Base64 data URL or external URL
+    videoGeneratedAt?: string;
     notes?: string;
     attachments?: Attachment[]; // File attachments for this version
     preferredBackgroundStyle?: string; // NEW: Persisted background style preference
+    tags?: string[]; // Tags for the version (e.g., 'veo 3', 'video')
     createdAt: string;
     updatedAt: string;
 }

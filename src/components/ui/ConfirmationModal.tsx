@@ -1,5 +1,6 @@
 'use client';
 
+import { ReactNode } from 'react';
 import Modal from './Modal';
 import Button from './Button';
 import styles from './ConfirmationModal.module.css';
@@ -8,7 +9,7 @@ interface ConfirmationModalProps {
     isOpen: boolean;
     onClose: () => void;
     title: string;
-    message: string;
+    message: ReactNode;
     confirmLabel?: string;
     cancelLabel?: string;
     onConfirm?: () => void;
@@ -35,7 +36,7 @@ export default function ConfirmationModal({
             size="sm"
         >
             <div className={`${styles.content} ${styles[`variant_${variant}`]}`}>
-                <p>{message}</p>
+                <div className={styles.messageContainer}>{message}</div>
 
                 <div className={styles.actions}>
                     {cancelLabel && (

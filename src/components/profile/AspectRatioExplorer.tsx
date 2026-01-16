@@ -159,6 +159,64 @@ export default function AspectRatioExplorer() {
                 <Button size="sm" onClick={() => handleOpenForm()}>+ Add Ratio</Button>
             </div>
 
+            <div className={styles.defaultsSection}>
+                <h3>Default Selection</h3>
+                <div className={styles.defaultsGrid}>
+                    <div className={styles.defaultGroup}>
+                        <label>Default Image Ratio</label>
+                        <select
+                            value={user?.settings?.defaultAspectRatioImage || ''}
+                            onChange={async (e) => {
+                                if (user) {
+                                    await updateUserProfile(user.id, {
+                                        settings: {
+                                            ...user.settings,
+                                            defaultAspectRatioImage: e.target.value
+                                        }
+                                    });
+                                }
+                            }}
+                            className={styles.select}
+                        >
+                            <option value="">Auto-Detect</option>
+                            {ratios.map(ratio => (
+                                <option key={ratio.id} value={ratio.id}>
+                                    {ratio.name} ({ratio.value})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className={styles.defaultGroup}>
+                        <label>Default Video Ratio</label>
+                        <select
+                            value={user?.settings?.defaultAspectRatioVideo || ''}
+                            onChange={async (e) => {
+                                if (user) {
+                                    await updateUserProfile(user.id, {
+                                        settings: {
+                                            ...user.settings,
+                                            defaultAspectRatioVideo: e.target.value
+                                        }
+                                    });
+                                }
+                            }}
+                            className={styles.select}
+                        >
+                            <option value="">Auto-Detect</option>
+                            {ratios.map(ratio => (
+                                <option key={ratio.id} value={ratio.id}>
+                                    {ratio.name} ({ratio.value})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+                <p className={styles.helperText}>
+                    These will be pre-selected when opening the generation modals.
+                </p>
+            </div>
+
             <div className={styles.ratioList}>
                 {isLoading ? (
                     <div className={styles.emptyState}>Loading aspect ratios...</div>
@@ -305,6 +363,8 @@ export default function AspectRatioExplorer() {
                 confirmLabel="Delete"
                 variant="danger"
             />
-        </div>
+
+
+        </div >
     );
 }

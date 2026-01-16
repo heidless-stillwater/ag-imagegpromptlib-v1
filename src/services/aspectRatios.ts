@@ -21,7 +21,7 @@ const COLLECTION_NAME = 'aspectRatios';
 const DEFAULT_RATIOS: AspectRatio[] = [
     {
         id: 'ratio-widescreen-16-9',
-        name: 'Widescreen (16:9)',
+        name: 'Widescreen',
         value: '16:9',
         primaryUseCase: 'YouTube, TV, Monitors',
         visualFeel: 'Modern, standard',
@@ -33,7 +33,7 @@ const DEFAULT_RATIOS: AspectRatio[] = [
     },
     {
         id: 'ratio-standard-4-3',
-        name: 'Standard (4:3)',
+        name: 'Standard',
         value: '4:3',
         primaryUseCase: 'Classic TV, smartphones',
         visualFeel: 'Natural, documentary',

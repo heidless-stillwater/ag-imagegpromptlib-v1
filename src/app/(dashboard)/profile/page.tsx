@@ -9,6 +9,7 @@ import { uploadUserAvatar } from '@/services/upload';
 import { MediaImage } from '@/types';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import Avatar from '@/components/ui/Avatar';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import ResetPasswordModal from '@/components/profile/ResetPasswordModal';
 import styles from './page.module.css';
@@ -24,6 +25,7 @@ export default function ProfilePage() {
         role: 'member' as 'admin' | 'member',
         avatarUrl: '',
         avatarPrompt: '',
+        avatarBgColor: '',
     });
 
     const [isSaving, setIsSaving] = useState(false);
@@ -59,6 +61,7 @@ export default function ProfilePage() {
                 role: user.role || 'member',
                 avatarUrl: user.avatarUrl || '',
                 avatarPrompt: user.avatarPrompt || '',
+                avatarBgColor: user.avatarBgColor || '',
             });
             setAvatarPrompt(user.avatarPrompt || '');
         }
@@ -85,6 +88,7 @@ export default function ProfilePage() {
                 role: formData.role,
                 avatarUrl: formData.avatarUrl,
                 avatarPrompt: avatarPrompt,
+                avatarBgColor: formData.avatarBgColor,
             };
 
             const updatedUser = await updateUserProfile(user.id, updates);
@@ -193,6 +197,21 @@ export default function ProfilePage() {
         setIsMediaModalOpen(false);
     };
 
+    const handleDeleteAvatar = () => {
+        setFormData(prev => ({ ...prev, avatarUrl: '' }));
+    };
+
+    const PRESET_COLORS = [
+        { name: 'None', value: 'transparent' },
+        { name: 'Primary', value: 'var(--gradient-primary)' },
+        { name: 'Slate', value: '#334155' },
+        { name: 'Indigo', value: '#6366f1' },
+        { name: 'Emerald', value: '#10b981' },
+        { name: 'Rose', value: '#f43f5e' },
+        { name: 'Amber', value: '#f59e0b' },
+        { name: 'Cyan', value: '#06b6d4' },
+    ];
+
     return (
         <div className={styles.container}>
             <div className={styles.header}>
@@ -202,15 +221,12 @@ export default function ProfilePage() {
 
             <div className={styles.card}>
                 <div className={styles.avatarSection}>
-                    <div className={styles.avatarPreview}>
-                        {formData.avatarUrl ? (
-                            <img src={formData.avatarUrl} alt="Avatar" className={styles.avatarImage} />
-                        ) : (
-                            <div className={styles.avatarPlaceholder}>
-                                {formData.displayName.charAt(0).toUpperCase()}
-                            </div>
-                        )}
-                    </div>
+                    <Avatar
+                        url={formData.avatarUrl}
+                        displayName={formData.displayName}
+                        bgColor={formData.avatarBgColor}
+                        size="xl"
+                    />
 
                     <div className={styles.avatarActions}>
                         <h3>Avatar Customization</h3>
@@ -252,17 +268,17 @@ export default function ProfilePage() {
                             </div>
 
                             <div className={styles.actionCard}>
-                                <h4>🖼️ Library</h4>
-                                <Button variant="secondary" size="sm" onClick={openMediaSelector}>
-                                    Select Image
-                                </Button>
-                            </div>
-
-                            <div className={styles.actionCard}>
-                                <h4>📁 Upload</h4>
-                                <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
-                                    Choose File
-                                </Button>
+                                <h4>📁 Upload / Manage</h4>
+                                <div className={styles.uploadActions}>
+                                    <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
+                                        Choose File
+                                    </Button>
+                                    {formData.avatarUrl && (
+                                        <Button variant="danger" size="sm" onClick={handleDeleteAvatar} title="Remove image">
+                                            Remove Image
+                                        </Button>
+                                    )}
+                                </div>
                                 <input
                                     type="file"
                                     ref={fileInputRef}
@@ -270,6 +286,39 @@ export default function ProfilePage() {
                                     accept="image/*"
                                     onChange={handleFileUpload}
                                 />
+                            </div>
+
+                            <div className={styles.actionCard}>
+                                <h4>🎨 Background Color</h4>
+                                <div className={styles.colorSelector}>
+                                    <div className={styles.presets}>
+                                        {PRESET_COLORS.map(color => (
+                                            <button
+                                                key={color.value}
+                                                type="button"
+                                                className={`${styles.colorCircle} ${formData.avatarBgColor === color.value ? styles.activeColor : ''}`}
+                                                style={{ background: color.value.startsWith('var') ? color.value : color.value }}
+                                                onClick={() => setFormData(prev => ({ ...prev, avatarBgColor: color.value }))}
+                                                title={color.name}
+                                            />
+                                        ))}
+                                    </div>
+                                    <div className={styles.customColor}>
+                                        <input
+                                            type="color"
+                                            value={formData.avatarBgColor.startsWith('#') ? formData.avatarBgColor : '#6366f1'}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, avatarBgColor: e.target.value }))}
+                                            className={styles.colorPicker}
+                                        />
+                                        <input
+                                            type="text"
+                                            value={formData.avatarBgColor}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, avatarBgColor: e.target.value }))}
+                                            placeholder="#ffffff"
+                                            className={styles.hexInput}
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -358,7 +407,7 @@ export default function ProfilePage() {
                         </Button>
                     </div>
                 </form>
-            </div>
+            </div >
 
             <Modal isOpen={isMediaModalOpen} onClose={() => setIsMediaModalOpen(false)} title="Select Avatar from Media" size="lg">
                 <div className={styles.mediaGrid}>
@@ -391,6 +440,6 @@ export default function ProfilePage() {
                 confirmLabel="Got It.."
                 cancelLabel=""
             />
-        </div>
+        </div >
     );
 }

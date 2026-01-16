@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import PromptSetCard from '@/components/prompts/PromptSetCard';
+import Avatar from '@/components/ui/Avatar';
 import ShareModal from '@/components/shares/ShareModal';
 import styles from './page.module.css';
 
@@ -227,9 +228,12 @@ export default function AdminPage() {
                         <div className={styles.userList}>
                             {users.map(user => (
                                 <div key={user.id} className={styles.userItem}>
-                                    <div className={styles.avatar}>
-                                        {user.displayName.charAt(0).toUpperCase()}
-                                    </div>
+                                    <Avatar
+                                        url={user.avatarUrl}
+                                        displayName={user.displayName}
+                                        bgColor={user.avatarBgColor}
+                                        size="md"
+                                    />
                                     <div className={styles.userInfo}>
                                         <span className={styles.userName}>{user.displayName}</span>
                                         <span className={styles.userEmail}>{user.email}</span>

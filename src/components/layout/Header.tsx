@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useShares } from '@/hooks/useShares';
 import SettingsModal from '@/components/profile/SettingsModal';
+import Avatar from '@/components/ui/Avatar';
 import styles from './Header.module.css';
 
 export default function Header() {
@@ -164,13 +165,12 @@ export default function Header() {
                         </div>
 
                         <Link href="/profile" className={styles.userMenu}>
-                            <div className={styles.avatar}>
-                                {user.avatarUrl ? (
-                                    <img src={user.avatarUrl} alt={user.displayName} className={styles.avatarImg} />
-                                ) : (
-                                    user.displayName.charAt(0).toUpperCase()
-                                )}
-                            </div>
+                            <Avatar
+                                url={user.avatarUrl}
+                                displayName={user.displayName}
+                                bgColor={user.avatarBgColor}
+                                size="sm"
+                            />
                             <div className={styles.userInfo}>
                                 <span className={styles.userName}>{user.displayName}</span>
                                 <span className={styles.userRole}>{user.role}</span>

@@ -7,6 +7,7 @@ export interface User {
     displayName: string;
     avatarUrl?: string; // Base64 or external URL
     avatarPrompt?: string; // Remembered prompt for AI generation
+    avatarBgColor?: string; // Hex color for avatar background
     password?: string; // For mock auth
     role: 'admin' | 'member';
     isPublic: boolean; // For user directory visibility

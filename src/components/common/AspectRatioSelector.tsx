@@ -7,11 +7,12 @@ import styles from './AspectRatioSelector.module.css';
 
 interface AspectRatioSelectorProps {
     selectedId?: string;
+    defaultId?: string;
     onSelect: (ratio: AspectRatio) => void;
     label?: string;
 }
 
-export default function AspectRatioSelector({ selectedId, onSelect, label = 'Select Aspect Ratio' }: AspectRatioSelectorProps) {
+export default function AspectRatioSelector({ selectedId, defaultId, onSelect, label = 'Select Aspect Ratio' }: AspectRatioSelectorProps) {
     const [ratios, setRatios] = useState<AspectRatio[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -21,9 +22,11 @@ export default function AspectRatioSelector({ selectedId, onSelect, label = 'Sel
                 const data = await getAspectRatios();
                 setRatios(data);
 
-                // If no selectedId provided, look for default
+                // If no selectedId provided, look for defaultId or isDefault flag
                 if (!selectedId && data.length > 0) {
-                    const defaultRatio = data.find(r => r.isDefault) || data[0];
+                    const defaultRatio = (defaultId ? data.find(r => r.id === defaultId) : null) ||
+                        data.find(r => r.isDefault) ||
+                        data[0];
                     onSelect(defaultRatio);
                 }
             } catch (error) {

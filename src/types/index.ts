@@ -12,6 +12,8 @@ export interface User {
     isPublic: boolean; // For user directory visibility
     settings?: {
         geminiApiKey?: string;
+        defaultAspectRatioImage?: string; // ID of AspectRatio
+        defaultAspectRatioVideo?: string; // ID of AspectRatio
         [key: string]: any;
     };
     createdAt: string;

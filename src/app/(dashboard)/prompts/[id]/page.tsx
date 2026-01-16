@@ -1056,6 +1056,7 @@ export default function PromptDetailPage() {
                             <div className={styles.formGroup} style={{ marginBottom: 'var(--space-6)' }}>
                                 <AspectRatioSelector
                                     selectedId={selectedAspectRatio?.id}
+                                    defaultId={user?.settings?.defaultAspectRatioImage}
                                     onSelect={setSelectedAspectRatio}
                                 />
                             </div>
@@ -1185,6 +1186,7 @@ export default function PromptDetailPage() {
                         <div style={{ marginTop: '1.5rem' }}>
                             <AspectRatioSelector
                                 selectedId={selectedAspectRatio?.id}
+                                defaultId={user?.settings?.defaultAspectRatioVideo}
                                 onSelect={setSelectedAspectRatio}
                             />
                         </div>

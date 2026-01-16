@@ -162,7 +162,8 @@ export async function generateImage(
     bypassCache: boolean = false,
     apiKey?: string,
     images?: ImageInput[],
-    backgroundStyle?: string
+    backgroundStyle?: string,
+    aspectRatio?: string
 ): Promise<GenerationResult> {
     // For 'live' mode, first check cache (only if no images - multimodal requests are unique)
     if (mode === 'live' && !bypassCache && (!images || images.length === 0)) {
@@ -198,6 +199,7 @@ export async function generateImage(
                 apiKey,
                 images,
                 backgroundStyle,
+                aspectRatio,
             }),
         });
 
@@ -254,6 +256,7 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export async function generateVideo(
     prompt: string,
     apiKey?: string,
+    aspectRatio?: string,
     onProgress?: (progress: number) => void
 ): Promise<GenerationResult> {
     try {
@@ -267,6 +270,7 @@ export async function generateVideo(
                 prompt,
                 type: 'video', // Specify video generation
                 apiKey,
+                aspectRatio,
             }),
         });
 

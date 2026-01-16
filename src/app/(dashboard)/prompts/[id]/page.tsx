@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { PromptSet, PromptVersion, Category, Attachment } from '@/types';
+import { PromptSet, PromptVersion, Category, Attachment, AspectRatio } from '@/types';
 import { getPromptSetById, updatePromptSet, addVersion, updateVersion, deleteVersion } from '@/services/promptSets';
 import { getCategories } from '@/services/categories';
 import { getAverageRating, ratePromptSet, getUserRating } from '@/services/ratings';
@@ -18,6 +18,7 @@ import StarRating from '@/components/ratings/StarRating';
 import ShareModal from '@/components/shares/ShareModal';
 import AttachmentPicker from '@/components/prompts/AttachmentPicker';
 import AttachmentList from '@/components/prompts/AttachmentList';
+import AspectRatioSelector from '@/components/common/AspectRatioSelector';
 import styles from './page.module.css';
 
 const BACKGROUND_STYLES = [
@@ -73,6 +74,7 @@ export default function PromptDetailPage() {
     const [generatingVideo, setGeneratingVideo] = useState(false);
     const [videoProgress, setVideoProgress] = useState(0);
     const [videoError, setVideoError] = useState('');
+    const [selectedAspectRatio, setSelectedAspectRatio] = useState<AspectRatio | null>(null);
 
     // Rating state
     const [averageRating, setAverageRating] = useState({ average: 0, count: 0 });
@@ -251,6 +253,7 @@ export default function PromptDetailPage() {
     const handlePrepareGenerate = async (version: PromptVersion) => {
         setSelectedVersion(version);
         setGenerateError('');
+        setSelectedAspectRatio(null); // Will be set by AspectRatioSelector to default
 
         // Check cache first
         const cached = await checkCache(version.promptText);
@@ -382,7 +385,8 @@ export default function PromptDetailPage() {
                 isBypassingCache,
                 user?.settings?.geminiApiKey,
                 images,
-                selectedBackgroundStyle !== 'default' ? BACKGROUND_STYLES.find(s => s.id === selectedBackgroundStyle)?.description : undefined
+                selectedBackgroundStyle !== 'default' ? BACKGROUND_STYLES.find(s => s.id === selectedBackgroundStyle)?.description : undefined,
+                selectedAspectRatio?.value
             );
 
             if (result.success) {
@@ -450,7 +454,8 @@ export default function PromptDetailPage() {
             const result = await generateVideo(
                 selectedVersion.promptText,
                 user?.settings?.geminiApiKey,
-                (progress) => setVideoProgress(progress)
+                selectedAspectRatio?.value,
+                (progress: number) => setVideoProgress(progress)
             );
 
             if (result.success && result.videoUrl) {
@@ -1048,6 +1053,13 @@ export default function PromptDetailPage() {
                                 </select>
                             </div>
 
+                            <div className={styles.formGroup} style={{ marginBottom: 'var(--space-6)' }}>
+                                <AspectRatioSelector
+                                    selectedId={selectedAspectRatio?.id}
+                                    onSelect={setSelectedAspectRatio}
+                                />
+                            </div>
+
                             <div className={styles.optionsGrid}>
                                 <button
                                     className={styles.optionCard}
@@ -1170,6 +1182,12 @@ export default function PromptDetailPage() {
                         <p style={{ marginTop: '0.5rem', fontSize: 'var(--font-xs)', opacity: 0.7 }}>
                             This will use the <code>veo-3.1-fast-generate-preview</code> model.
                         </p>
+                        <div style={{ marginTop: '1.5rem' }}>
+                            <AspectRatioSelector
+                                selectedId={selectedAspectRatio?.id}
+                                onSelect={setSelectedAspectRatio}
+                            />
+                        </div>
                     </div>
                 }
                 variant="success"

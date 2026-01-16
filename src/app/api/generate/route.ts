@@ -22,13 +22,15 @@ interface ImageInput {
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { prompt, testConnection, apiKey: userApiKey, images, type, operationName } = body as {
+        const { prompt, testConnection, apiKey: userApiKey, images, type, operationName, aspectRatio, backgroundStyle } = body as {
             prompt: string;
             testConnection?: boolean;
             apiKey?: string;
             images?: ImageInput[];
             type?: 'image' | 'video' | 'video-status';
             operationName?: string;
+            aspectRatio?: string;
+            backgroundStyle?: string;
         };
 
         const apiKey = userApiKey || process.env.GEMINI_API_KEY;
@@ -184,6 +186,7 @@ export async function POST(request: NextRequest) {
                     }],
                     parameters: {
                         sampleCount: 1,
+                        aspectRatio: aspectRatio || '16:9',
                         // Using defaults for "minimal file size" preference
                     }
                 })
@@ -242,10 +245,11 @@ export async function POST(request: NextRequest) {
 
         // Add text prompt
         const seed = Date.now();
-        const styleInstruction = body.backgroundStyle ? `, ${body.backgroundStyle}` : '';
+        const styleInstruction = backgroundStyle ? `, ${backgroundStyle}` : '';
+        const ratioInstruction = aspectRatio ? `, aspect ratio ${aspectRatio}` : '';
         const finalPrompt = images && images.length > 0
-            ? `IMPORTANT: You MUST generate a NEW IMAGE in your response. Base the new image on these instructions: ${prompt}${styleInstruction}. Use the attached image(s) as visual reference/context for the transformation. [variation_id: ${seed}]`
-            : `Generate a detailed, high-quality image based on this description: ${prompt}${styleInstruction}. Make it visually stunning with rich colors and professional composition. [variation_id: ${seed}]`;
+            ? `IMPORTANT: You MUST generate a NEW IMAGE in your response. Base the new image on these instructions: ${prompt}${styleInstruction}${ratioInstruction}. Use the attached image(s) as visual reference/context for the transformation. [variation_id: ${seed}]`
+            : `Generate a detailed, high-quality image based on this description: ${prompt}${styleInstruction}${ratioInstruction}. Make it visually stunning with rich colors and professional composition. [variation_id: ${seed}]`;
 
         console.log('Gemini prompt:', finalPrompt);
         parts.push({ text: finalPrompt });

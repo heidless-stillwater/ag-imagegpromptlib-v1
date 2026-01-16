@@ -73,9 +73,15 @@ const DEFAULT_RATIOS: AspectRatio[] = [
  * Initialize aspect ratios
  */
 export async function initializeAspectRatios(): Promise<void> {
-    console.log('Syncing system aspect ratios in Firestore...');
+    console.log('Checking system aspect ratios in Firestore...');
     for (const ratio of DEFAULT_RATIOS) {
-        await setDoc(doc(db, COLLECTION_NAME, ratio.id), sanitizeData(ratio));
+        const docRef = doc(db, COLLECTION_NAME, ratio.id);
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+            console.log(`Initializing missing aspect ratio: ${ratio.name}`);
+            await setDoc(docRef, sanitizeData(ratio));
+        }
     }
 }
 
@@ -142,10 +148,7 @@ export async function createAspectRatio(data: {
     isSystem?: boolean;
 }): Promise<AspectRatio | null> {
     const currentUser = await getCurrentUser();
-    const adminMode = await isAdmin();
-
-    if (data.isSystem && !adminMode) return null;
-    if (!data.isSystem && !currentUser) return null;
+    if (!currentUser) return null;
 
     const id = generateId();
     const newRatio: AspectRatio = {
@@ -175,12 +178,10 @@ export async function updateAspectRatio(
     if (!ratio) return null;
 
     const currentUser = await getCurrentUser();
-    const adminMode = await isAdmin();
+    if (!currentUser) return null;
 
-    if (ratio.isSystem && !adminMode) return null;
-    if (!ratio.isSystem && !adminMode && ratio.userId !== currentUser?.id) return null;
-
-    await updateDoc(doc(db, COLLECTION_NAME, id), sanitizeData(updates));
+    const sanitizedUpdates = sanitizeData(updates);
+    await updateDoc(doc(db, COLLECTION_NAME, id), sanitizedUpdates);
     return { ...ratio, ...updates } as AspectRatio;
 }
 
@@ -192,10 +193,7 @@ export async function deleteAspectRatio(id: string): Promise<boolean> {
     if (!ratio) return false;
 
     const currentUser = await getCurrentUser();
-    const adminMode = await isAdmin();
-
-    if (ratio.isSystem && !adminMode) return false;
-    if (!ratio.isSystem && !adminMode && ratio.userId !== currentUser?.id) return false;
+    if (!currentUser) return false;
 
     await deleteDoc(doc(db, COLLECTION_NAME, id));
     return true;

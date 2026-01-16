@@ -116,8 +116,9 @@ export default function AspectRatioExplorer() {
         if (!name.trim() || !value.trim()) return;
 
         try {
+            let result;
             if (editingRatio) {
-                await updateAspectRatio(editingRatio.id, {
+                result = await updateAspectRatio(editingRatio.id, {
                     name,
                     value,
                     primaryUseCase,
@@ -125,7 +126,7 @@ export default function AspectRatioExplorer() {
                     isDefault
                 });
             } else {
-                await createAspectRatio({
+                result = await createAspectRatio({
                     name,
                     value,
                     primaryUseCase,
@@ -134,8 +135,11 @@ export default function AspectRatioExplorer() {
                     isSystem
                 });
             }
-            await loadRatios();
-            setIsFormModalOpen(false);
+
+            if (result) {
+                await loadRatios();
+                setIsFormModalOpen(false);
+            }
         } catch (error) {
             console.error('Failed to save aspect ratio:', error);
         }

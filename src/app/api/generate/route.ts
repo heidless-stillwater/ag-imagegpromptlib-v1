@@ -228,6 +228,11 @@ export async function POST(request: NextRequest) {
                 { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT' as any, threshold: 'BLOCK_NONE' as any },
                 { category: 'HARM_CATEGORY_DANGEROUS_CONTENT' as any, threshold: 'BLOCK_NONE' as any },
             ],
+            generationConfig: {
+                imageConfig: {
+                    aspectRatio: aspectRatio || '1:1',
+                }
+            } as any
         });
 
         // Build content parts

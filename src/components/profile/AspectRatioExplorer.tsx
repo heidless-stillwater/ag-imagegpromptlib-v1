@@ -8,6 +8,7 @@ import {
     updateAspectRatio,
     deleteAspectRatio
 } from '@/services/aspectRatios';
+import { updateUserProfile } from '@/services/auth';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
@@ -15,9 +16,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import styles from './AspectRatioExplorer.module.css';
 
 export default function AspectRatioExplorer() {
-    const { isAdmin } = useAuth();
+    const { user, isAdmin } = useAuth();
     const [ratios, setRatios] = useState<AspectRatio[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
     // Modal states
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -45,6 +47,47 @@ export default function AspectRatioExplorer() {
             console.error('Failed to load aspect ratios:', error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleDragStart = (e: React.DragEvent, index: number) => {
+        setDraggedIndex(index);
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    };
+
+    const handleDrop = async (e: React.DragEvent, index: number) => {
+        e.preventDefault();
+        if (draggedIndex === null || draggedIndex === index) {
+            setDraggedIndex(null);
+            return;
+        }
+
+        const newRatios = [...ratios];
+        const draggedItem = newRatios[draggedIndex];
+        newRatios.splice(draggedIndex, 1);
+        newRatios.splice(index, 0, draggedItem);
+
+        setRatios(newRatios);
+        setDraggedIndex(null);
+
+        // Persist order to user settings
+        if (user) {
+            const newOrder = newRatios.map(r => r.id);
+            try {
+                await updateUserProfile(user.id, {
+                    settings: {
+                        ...user.settings,
+                        aspectRatioOrder: newOrder
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to save aspect ratio order:', error);
+            }
         }
     };
 
@@ -122,8 +165,25 @@ export default function AspectRatioExplorer() {
                 ) : ratios.length === 0 ? (
                     <div className={styles.emptyState}>No aspect ratios found. Create your first one!</div>
                 ) : (
-                    ratios.map(ratio => (
-                        <div key={ratio.id} className={styles.ratioItem}>
+                    ratios.map((ratio, index) => (
+                        <div
+                            key={ratio.id}
+                            className={`${styles.ratioItem} ${draggedIndex === index ? styles.dragging : ''}`}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, index)}
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, index)}
+                        >
+                            <div className={styles.dragHandle}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="9" cy="5" r="1" />
+                                    <circle cx="9" cy="12" r="1" />
+                                    <circle cx="9" cy="19" r="1" />
+                                    <circle cx="15" cy="5" r="1" />
+                                    <circle cx="15" cy="12" r="1" />
+                                    <circle cx="15" cy="19" r="1" />
+                                </svg>
+                            </div>
                             <div className={styles.ratioInfo}>
                                 <div className={styles.ratioNameRow}>
                                     <h3>{ratio.name}</h3>

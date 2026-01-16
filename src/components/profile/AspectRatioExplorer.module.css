@@ -41,6 +41,31 @@
     background: var(--color-bg-tertiary);
 }
 
+.ratioItem.dragging {
+    opacity: 0.5;
+    background: var(--color-bg-tertiary);
+    border: 2px dashed var(--color-accent-primary);
+}
+
+.dragHandle {
+    cursor: grab;
+    padding: var(--space-2);
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+}
+
+.dragHandle:hover {
+    color: var(--color-text-primary);
+    background: var(--color-bg-tertiary);
+}
+
+.dragHandle:active {
+    cursor: grabbing;
+}
+
 .ratioInfo {
     flex: 1;
 }

@@ -20,14 +20,15 @@ const COLLECTION_NAME = 'aspectRatios';
 
 const DEFAULT_RATIOS: AspectRatio[] = [
     {
-        id: 'ratio-square',
-        name: 'Square',
-        value: '1:1',
-        primaryUseCase: 'Profile pictures, Instagram, Social Media post',
-        visualFeel: 'Balanced, centered, stable',
-        isDefault: false,
+        id: 'ratio-widescreen-16-9',
+        name: 'Widescreen (16:9)',
+        value: '16:9',
+        primaryUseCase: 'YouTube, TV, Monitors',
+        visualFeel: 'Modern, standard',
+        isDefault: true,
         userId: null,
         isSystem: true,
+        order: 0,
         createdAt: '2024-01-01T00:00:00.000Z',
     },
     {
@@ -39,17 +40,19 @@ const DEFAULT_RATIOS: AspectRatio[] = [
         isDefault: false,
         userId: null,
         isSystem: true,
+        order: 1,
         createdAt: '2024-01-01T00:00:00.000Z',
     },
     {
-        id: 'ratio-widescreen-16-9',
-        name: 'Widescreen (16:9)',
-        value: '16:9',
-        primaryUseCase: 'YouTube, TV, Monitors',
-        visualFeel: 'Modern, standard',
-        isDefault: true,
+        id: 'ratio-square',
+        name: 'Square',
+        value: '1:1',
+        primaryUseCase: 'Profile pictures, Instagram, Social Media post',
+        visualFeel: 'Balanced, centered, stable',
+        isDefault: false,
         userId: null,
         isSystem: true,
+        order: 2,
         createdAt: '2024-01-01T00:00:00.000Z',
     },
     {
@@ -61,6 +64,7 @@ const DEFAULT_RATIOS: AspectRatio[] = [
         isDefault: false,
         userId: null,
         isSystem: true,
+        order: 3,
         createdAt: '2024-01-01T00:00:00.000Z',
     }
 ];
@@ -85,13 +89,36 @@ export async function getAspectRatios(): Promise<AspectRatio[]> {
 
     const colRef = collection(db, COLLECTION_NAME);
     const snapshot = await getDocs(colRef);
-    const allRatios = snapshot.docs.map(doc => doc.data() as AspectRatio);
+    let allRatios = snapshot.docs.map(doc => doc.data() as AspectRatio);
 
-    return allRatios.filter(r =>
+    // Filter by visibility
+    allRatios = allRatios.filter(r =>
         r.isSystem ||
         (currentUser && r.userId === currentUser.id) ||
         adminMode
     );
+
+    // Apply ordering
+    if (currentUser?.settings?.aspectRatioOrder && currentUser.settings.aspectRatioOrder.length > 0) {
+        const customOrder = currentUser.settings.aspectRatioOrder;
+        allRatios.sort((a, b) => {
+            const indexA = customOrder.indexOf(a.id);
+            const indexB = customOrder.indexOf(b.id);
+
+            // If both in custom order, use that
+            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+            // If only one in custom order, it goes first
+            if (indexA !== -1) return -1;
+            if (indexB !== -1) return 1;
+            // Otherwise fallback to default order or createdAt
+            return (a.order ?? 999) - (b.order ?? 999) || a.createdAt.localeCompare(b.createdAt);
+        });
+    } else {
+        // Fallback to default system order
+        allRatios.sort((a, b) => (a.order ?? 999) - (b.order ?? 999) || a.createdAt.localeCompare(b.createdAt));
+    }
+
+    return allRatios;
 }
 
 /**

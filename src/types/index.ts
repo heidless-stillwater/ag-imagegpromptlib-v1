@@ -15,6 +15,7 @@ export interface User {
         geminiApiKey?: string;
         defaultAspectRatioImage?: string; // ID of AspectRatio
         defaultAspectRatioVideo?: string; // ID of AspectRatio
+        aspectRatioOrder?: string[]; // Array of AspectRatio IDs in preferred order
         [key: string]: any;
     };
     createdAt: string;
@@ -40,6 +41,7 @@ export interface AspectRatio {
     isDefault: boolean;
     userId: string | null; // null = system
     isSystem: boolean;
+    order?: number; // Default display order
     createdAt: string;
 }
 

@@ -87,7 +87,7 @@ export function getAdminFirestore(): Firestore {
     const app = getAdminApp();
     // Use dynamicRequire to ensure modular firebase-admin submodules are loaded correctly
     const { getFirestore } = dynamicRequire('firebase-admin/firestore');
-    return getFirestore(app, 'imgprompt-db-0');
+    return getFirestore(app, 'promptvault-db-0');
 }
 
 /**

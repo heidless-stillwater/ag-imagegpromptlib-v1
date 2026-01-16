@@ -19,7 +19,7 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 // Setting ignoreUndefinedProperties to true resolves many "invalid nested entity" errors
 export const db = initializeFirestore(app, {
     ignoreUndefinedProperties: true,
-}, 'imgprompt-db-0');
+}, 'promptvault-db-0');
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);

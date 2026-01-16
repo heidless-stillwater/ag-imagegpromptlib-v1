@@ -44,6 +44,10 @@ service cloud.firestore {
     match /backups/{document=**} {
       allow read, write: if isAuthenticated();
     }
+
+    match /aspectRatios/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
     
     // API Keys: Users can only manage their own API keys
     match /apiKeys/{keyId} {

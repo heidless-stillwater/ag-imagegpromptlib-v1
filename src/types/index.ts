@@ -27,6 +27,19 @@ export interface Category {
     createdAt: string;
 }
 
+// Aspect Ratio types
+export interface AspectRatio {
+    id: string;
+    name: string;
+    value: string; // e.g., "1:1", "16:9"
+    primaryUseCase?: string;
+    visualFeel?: string;
+    isDefault: boolean;
+    userId: string | null; // null = system
+    isSystem: boolean;
+    createdAt: string;
+}
+
 // Rating types
 export interface Rating {
     id: string;

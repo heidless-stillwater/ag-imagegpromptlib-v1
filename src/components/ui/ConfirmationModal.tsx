@@ -15,6 +15,7 @@ interface ConfirmationModalProps {
     onConfirm?: () => void;
     variant?: 'danger' | 'info' | 'success';
     isLoading?: boolean;
+    size?: 'sm' | 'md' | 'lg';
 }
 
 export default function ConfirmationModal({
@@ -27,13 +28,14 @@ export default function ConfirmationModal({
     onConfirm,
     variant = 'info',
     isLoading = false,
+    size = 'sm',
 }: ConfirmationModalProps) {
     return (
         <Modal
             isOpen={isOpen}
             onClose={onClose}
             title={title}
-            size="sm"
+            size={size}
         >
             <div className={`${styles.content} ${styles[`variant_${variant}`]}`}>
                 <div className={styles.messageContainer}>{message}</div>

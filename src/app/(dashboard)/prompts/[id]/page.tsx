@@ -1196,6 +1196,7 @@ export default function PromptDetailPage() {
                 }
                 variant="success"
                 confirmLabel="Generate Video"
+                size="md"
             />
         </div>
     );

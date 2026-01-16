@@ -3,13 +3,13 @@ import { getAuth } from "firebase/auth";
 import { initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 const firebaseConfig = {
-    apiKey: "AIzaSyAQ1mxB2uj86qOAXlT_mUQitK61PQiqXYY",
-    authDomain: "heidless-firebase.firebaseapp.com",
-    projectId: "heidless-firebase",
-    storageBucket: "heidless-firebase.firebasestorage.app",
-    messagingSenderId: "232488530911",
-    appId: "1:232488530911:web:26540803653cd063110a6a",
-    measurementId: "G-Y5X8DBZ2FB"
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase

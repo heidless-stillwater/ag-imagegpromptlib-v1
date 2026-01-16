@@ -25,29 +25,29 @@ const DEFAULT_RATIOS: AspectRatio[] = [
         value: '1:1',
         primaryUseCase: 'Profile pictures, Instagram, Social Media post',
         visualFeel: 'Balanced, centered, stable',
-        isDefault: true,
+        isDefault: false,
         userId: null,
         isSystem: true,
         createdAt: '2024-01-01T00:00:00.000Z',
     },
     {
-        id: 'ratio-landscape-4-3',
-        name: 'Classic Landscape',
+        id: 'ratio-standard-4-3',
+        name: 'Standard (4:3)',
         value: '4:3',
-        primaryUseCase: 'Traditional television, photography, monitors',
-        visualFeel: 'Timeless, natural, established',
+        primaryUseCase: 'Classic TV, smartphones',
+        visualFeel: 'Natural, documentary',
         isDefault: false,
         userId: null,
         isSystem: true,
         createdAt: '2024-01-01T00:00:00.000Z',
     },
     {
-        id: 'ratio-landscape-16-9',
-        name: 'Wide Landscape',
+        id: 'ratio-widescreen-16-9',
+        name: 'Widescreen (16:9)',
         value: '16:9',
-        primaryUseCase: 'Cinematic shots, modern screens, YouTube, presentations',
-        visualFeel: 'Expansive, modern, immersive',
-        isDefault: false,
+        primaryUseCase: 'YouTube, TV, Monitors',
+        visualFeel: 'Modern, standard',
+        isDefault: true,
         userId: null,
         isSystem: true,
         createdAt: '2024-01-01T00:00:00.000Z',
@@ -69,15 +69,9 @@ const DEFAULT_RATIOS: AspectRatio[] = [
  * Initialize aspect ratios
  */
 export async function initializeAspectRatios(): Promise<void> {
-    const colRef = collection(db, COLLECTION_NAME);
-    const q = query(colRef, where('isSystem', '==', true));
-    const snapshot = await getDocs(q);
-
-    if (snapshot.empty) {
-        console.log('Initializing system aspect ratios in Firestore...');
-        for (const ratio of DEFAULT_RATIOS) {
-            await setDoc(doc(db, COLLECTION_NAME, ratio.id), sanitizeData(ratio));
-        }
+    console.log('Syncing system aspect ratios in Firestore...');
+    for (const ratio of DEFAULT_RATIOS) {
+        await setDoc(doc(db, COLLECTION_NAME, ratio.id), sanitizeData(ratio));
     }
 }
 

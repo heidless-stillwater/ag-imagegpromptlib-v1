@@ -660,13 +660,18 @@ export default function PromptDetailPage() {
                                     <div className={styles.versionActions}>
                                         <Button
                                             size="sm"
+                                            onClick={() => handleOpenEditVersionModal(selectedVersion)}
+                                        >
+                                            Edit
+                                        </Button>
+                                        <Button
+                                            size="sm"
                                             onClick={() => handlePrepareGenerate(selectedVersion)}
                                         >
                                             🎨 Generate Image
                                         </Button>
                                         <Button
                                             size="sm"
-                                            variant="secondary"
                                             onClick={() => setIsVideoConfirmModalOpen(true)}
                                             disabled={generatingVideo}
                                         >
@@ -685,13 +690,6 @@ export default function PromptDetailPage() {
                                             onClick={() => handleDeleteVersion(selectedVersion.id)}
                                         >
                                             Delete
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="secondary"
-                                            onClick={() => handleOpenEditVersionModal(selectedVersion)}
-                                        >
-                                            Edit
                                         </Button>
                                     </div>
                                 </div>

@@ -1058,6 +1058,7 @@ export default function PromptDetailPage() {
                                     selectedId={selectedAspectRatio?.id}
                                     defaultId={user?.settings?.defaultAspectRatioImage}
                                     onSelect={setSelectedAspectRatio}
+                                    cols={3}
                                 />
                             </div>
 
@@ -1188,6 +1189,7 @@ export default function PromptDetailPage() {
                                 selectedId={selectedAspectRatio?.id}
                                 defaultId={user?.settings?.defaultAspectRatioVideo}
                                 onSelect={setSelectedAspectRatio}
+                                cols={3}
                             />
                         </div>
                     </div>

@@ -10,9 +10,16 @@ interface AspectRatioSelectorProps {
     defaultId?: string;
     onSelect: (ratio: AspectRatio) => void;
     label?: string;
+    cols?: number | 'auto';
 }
 
-export default function AspectRatioSelector({ selectedId, defaultId, onSelect, label = 'Select Aspect Ratio' }: AspectRatioSelectorProps) {
+export default function AspectRatioSelector({
+    selectedId,
+    defaultId,
+    onSelect,
+    label = 'Select Aspect Ratio',
+    cols = 'auto'
+}: AspectRatioSelectorProps) {
     const [ratios, setRatios] = useState<AspectRatio[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -57,7 +64,10 @@ export default function AspectRatioSelector({ selectedId, defaultId, onSelect, l
     }
 
     return (
-        <div className={styles.container}>
+        <div
+            className={styles.container}
+            style={{ '--grid-cols': cols === 'auto' ? 'auto-fill' : `repeat(${cols}, 1fr)` } as React.CSSProperties}
+        >
             <span className={styles.label}>{label}</span>
             <div className={styles.grid}>
                 {ratios.map(ratio => (

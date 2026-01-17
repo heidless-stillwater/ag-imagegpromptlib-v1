@@ -1043,7 +1043,6 @@ export default function PromptDetailPage() {
                                     value={selectedBackgroundStyle}
                                     onChange={e => setSelectedBackgroundStyle(e.target.value)}
                                     className="input select"
-                                    style={{ width: '100%', padding: 'var(--space-2)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-alt)', color: 'var(--color-text)' }}
                                 >
                                     {BACKGROUND_STYLES.map(style => (
                                         <option key={style.id} value={style.id}>

@@ -1,12 +1,12 @@
 {
   "projects": {
-    "default": "heidless-firebase"
+    "default": "heidless-firebase-2"
   },
   "targets": {
-    "heidless-firebase": {
+    "heidless-firebase-2": {
       "hosting": {
         "app": [
-          "imageprompt-v1-dev"
+          "heidless-firebase-2"
         ]
       }
     }

@@ -201,7 +201,7 @@ export default function AspectRatioExplorer() {
                                     await loadRatios();
                                 }
                             }}
-                            className={styles.select}
+                            className="input select"
                         >
                             <option value="">Auto-Detect</option>
                             {ratios.map(ratio => (
@@ -237,7 +237,7 @@ export default function AspectRatioExplorer() {
                                     await loadRatios();
                                 }
                             }}
-                            className={styles.select}
+                            className="input select"
                         >
                             <option value="">Auto-Detect</option>
                             {ratios.map(ratio => (

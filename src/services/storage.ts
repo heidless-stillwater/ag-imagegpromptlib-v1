@@ -41,7 +41,7 @@ export async function getCollection<T>(key: string): Promise<T[]> {
             }
         }
 
-        return data || [];
+        return Array.isArray(data) ? data : [];
     } catch (error) {
         console.error(`Error reading ${key} from IndexedDB, falling back to LocalStorage:`, error);
         // Fallback to LocalStorage on IDB failure
@@ -95,7 +95,9 @@ export function getCollectionFromSession<T>(key: string): T[] {
 
     try {
         const data = sessionStorage.getItem(key);
-        return data ? JSON.parse(data) : [];
+        if (!data) return [];
+        const parsed = JSON.parse(data);
+        return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
         console.error(`Error reading ${key} from sessionStorage:`, error);
         return [];

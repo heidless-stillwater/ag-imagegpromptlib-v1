@@ -11,24 +11,34 @@ import styles from './SettingsModal.module.css';
 interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
+    defaultTab?: TabType;
 }
 
 type TabType = 'general' | 'aspect-ratios';
 
-export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+export default function SettingsModal({ isOpen, onClose, defaultTab }: SettingsModalProps) {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<TabType>('general');
     const [geminiApiKey, setGeminiApiKey] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
+    // Track previous isOpen state to detect modal opening
+    const [wasOpen, setWasOpen] = useState(false);
+
     useEffect(() => {
-        if (isOpen) {
+        // Only initialize when opening the modal
+        if (isOpen && !wasOpen) {
             setGeminiApiKey(user?.settings?.geminiApiKey || 'AIzaSyA9ljr_ryKxbtlTPwemOQ62NhOMTcGrOig');
             setMessage(null);
-            setActiveTab('general');
+            if (defaultTab) {
+                setActiveTab(defaultTab);
+            } else {
+                setActiveTab('general');
+            }
         }
-    }, [isOpen, user]);
+        setWasOpen(isOpen);
+    }, [isOpen, wasOpen, user?.settings?.geminiApiKey, defaultTab]);
 
 
     const handleSave = async () => {

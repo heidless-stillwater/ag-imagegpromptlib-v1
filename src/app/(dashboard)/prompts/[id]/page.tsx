@@ -584,16 +584,24 @@ export default function PromptDetailPage() {
     const category = categories.find(c => c.id === promptSet.categoryId);
 
     const handleOpenAddVersionModal = () => {
-        if (promptSet && promptSet.versions.length > 0) {
-            // Prefill with the latest version's text
-            const latestVersion = promptSet.versions[promptSet.versions.length - 1];
-            setNewVersionPrompt(latestVersion.promptText);
+        // Determine source version: prioritize selectedVersion, fallback to latest
+        let sourceVersion = selectedVersion;
+        if (!sourceVersion && promptSet && promptSet.versions.length > 0) {
+            sourceVersion = promptSet.versions[promptSet.versions.length - 1];
+        }
+
+        if (sourceVersion) {
+            // Prefill with source version's data
+            setNewVersionPrompt(sourceVersion.promptText);
+            setNewVersionAttachments(sourceVersion.attachments ? [...sourceVersion.attachments] : []);
+            setNewVersionBackgroundStyle(sourceVersion.preferredBackgroundStyle || 'default');
         } else {
             setNewVersionPrompt('');
+            setNewVersionAttachments([]);
+            setNewVersionBackgroundStyle('default');
         }
+
         setNewVersionNotes('');
-        setNewVersionAttachments([]);
-        setNewVersionBackgroundStyle('default');
         setIsVersionModalOpen(true);
     };
 

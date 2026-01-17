@@ -26,6 +26,8 @@ const DEFAULT_RATIOS: AspectRatio[] = [
         primaryUseCase: 'YouTube, TV, Monitors',
         visualFeel: 'Modern, standard',
         isDefault: true,
+        imageDefaultAR: false,
+        videoDefaultAR: false,
         userId: null,
         isSystem: true,
         order: 0,
@@ -38,6 +40,8 @@ const DEFAULT_RATIOS: AspectRatio[] = [
         primaryUseCase: 'Classic TV, smartphones',
         visualFeel: 'Natural, documentary',
         isDefault: false,
+        imageDefaultAR: false,
+        videoDefaultAR: false,
         userId: null,
         isSystem: true,
         order: 1,
@@ -50,6 +54,8 @@ const DEFAULT_RATIOS: AspectRatio[] = [
         primaryUseCase: 'Profile pictures, Instagram, Social Media post',
         visualFeel: 'Balanced, centered, stable',
         isDefault: false,
+        imageDefaultAR: false,
+        videoDefaultAR: false,
         userId: null,
         isSystem: true,
         order: 2,
@@ -62,6 +68,8 @@ const DEFAULT_RATIOS: AspectRatio[] = [
         primaryUseCase: 'Mobile fullscreen, TikTok, Instagram Stories, Reels',
         visualFeel: 'Vertical, modern, focused',
         isDefault: false,
+        imageDefaultAR: false,
+        videoDefaultAR: false,
         userId: null,
         isSystem: true,
         order: 3,
@@ -145,6 +153,8 @@ export async function createAspectRatio(data: {
     primaryUseCase?: string;
     visualFeel?: string;
     isDefault?: boolean;
+    imageDefaultAR?: boolean;
+    videoDefaultAR?: boolean;
     isSystem?: boolean;
 }): Promise<AspectRatio | null> {
     const currentUser = await getCurrentUser();
@@ -158,6 +168,8 @@ export async function createAspectRatio(data: {
         primaryUseCase: data.primaryUseCase || '',
         visualFeel: data.visualFeel || '',
         isDefault: data.isDefault || false,
+        imageDefaultAR: data.imageDefaultAR || false,
+        videoDefaultAR: data.videoDefaultAR || false,
         userId: data.isSystem ? null : currentUser!.id,
         isSystem: data.isSystem || false,
         createdAt: new Date().toISOString(),

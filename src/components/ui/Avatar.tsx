@@ -18,7 +18,8 @@ const Avatar: React.FC<AvatarProps> = ({
     className = '',
     style = {}
 }) => {
-    const background = bgColor || 'var(--gradient-primary)';
+    // Treat empty string as "transparent" to allow removal
+    const background = bgColor === '' ? 'transparent' : (bgColor || 'var(--gradient-primary)');
     const initials = displayName ? displayName.charAt(0).toUpperCase() : '?';
 
     return (

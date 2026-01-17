@@ -48,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             isPublic: userData.isPublic ?? true,
                             avatarUrl: userData.avatarUrl || firebaseUser.photoURL || '',
                             avatarPrompt: userData.avatarPrompt || '',
+                            avatarBgColor: userData.avatarBgColor || '',
                             username: userData.username || '',
                             loginName: userData.loginName || '',
                             settings: userData.settings || {},

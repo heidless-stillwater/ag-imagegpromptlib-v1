@@ -39,6 +39,8 @@ export interface AspectRatio {
     primaryUseCase?: string;
     visualFeel?: string;
     isDefault: boolean;
+    imageDefaultAR: boolean; // NEW: Default for image generation
+    videoDefaultAR: boolean; // NEW: Default for video generation
     userId: string | null; // null = system
     isSystem: boolean;
     order?: number; // Default display order

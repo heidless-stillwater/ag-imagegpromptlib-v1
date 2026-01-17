@@ -10,15 +10,20 @@ import {
 } from './storage';
 
 /**
- * Cleanup function to migrate from localStorage to sessionStorage
- * and remove the old large data if it exists.
+ * Cleanup function to migrate from localStorage/sessionStorage to IndexedDB
  */
 function cleanupOldCache() {
     if (typeof window !== 'undefined') {
-        const oldCache = localStorage.getItem(STORAGE_KEYS.GENERATION_CACHE);
-        if (oldCache) {
-            console.log('Migrating generation cache to sessionStorage and cleaning up localStorage...');
+        const oldLSCache = localStorage.getItem(STORAGE_KEYS.GENERATION_CACHE);
+        if (oldLSCache) {
+            console.log('Cleaning up legacy localStorage generation cache...');
             localStorage.removeItem(STORAGE_KEYS.GENERATION_CACHE);
+        }
+
+        const oldSessionCache = sessionStorage.getItem(STORAGE_KEYS.GENERATION_CACHE);
+        if (oldSessionCache) {
+            console.log('Cleaning up legacy sessionStorage generation cache...');
+            sessionStorage.removeItem(STORAGE_KEYS.GENERATION_CACHE);
         }
     }
 }
@@ -55,25 +60,24 @@ export async function hashPrompt(prompt: string): Promise<string> {
  */
 export async function checkCache(prompt: string): Promise<string | null> {
     const hash = await hashPrompt(prompt);
-    // sessionStorage methods remain synchronous because they fit within the 5MB limit
-    // and are extremely fast, and they don't have a Promise-based API in the browser.
-    const cache = getCollectionFromSession<GenerationCache>(STORAGE_KEYS.GENERATION_CACHE);
+    const cache = await getCollection<GenerationCache>(STORAGE_KEYS.GENERATION_CACHE);
     const entry = cache.find(c => c.promptHash === hash);
 
     return entry?.imageUrl || null;
 }
 
 /**
- * Maximum number of images to keep in the session cache
+ * Maximum number of images to keep in the cache
+ * Increased since we now use IndexedDB which has a much higher quota.
  */
-const MAX_CACHE_SIZE = 2;
+const MAX_CACHE_SIZE = 5;
 
 /**
  * Add an image to the cache
  */
 export async function addToCache(prompt: string, imageUrl: string): Promise<void> {
     const hash = await hashPrompt(prompt);
-    const cache = getCollectionFromSession<GenerationCache>(STORAGE_KEYS.GENERATION_CACHE);
+    const cache = await getCollection<GenerationCache>(STORAGE_KEYS.GENERATION_CACHE);
 
     // Remove existing entry if present
     let filtered = cache.filter(c => c.promptHash !== hash);
@@ -89,21 +93,21 @@ export async function addToCache(prompt: string, imageUrl: string): Promise<void
         .sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime())
         .slice(0, MAX_CACHE_SIZE);
 
-    setCollectionInSession(STORAGE_KEYS.GENERATION_CACHE, updatedCache);
+    await setCollection(STORAGE_KEYS.GENERATION_CACHE, updatedCache);
 }
 
 /**
  * Clear the generation cache
  */
 export async function clearCache(): Promise<void> {
-    setCollectionInSession(STORAGE_KEYS.GENERATION_CACHE, []);
+    await setCollection(STORAGE_KEYS.GENERATION_CACHE, []);
 }
 
 /**
  * Get cache statistics
  */
 export async function getCacheStats(): Promise<{ count: number; oldestEntry?: string }> {
-    const cache = getCollectionFromSession<GenerationCache>(STORAGE_KEYS.GENERATION_CACHE);
+    const cache = await getCollection<GenerationCache>(STORAGE_KEYS.GENERATION_CACHE);
 
     if (cache.length === 0) {
         return { count: 0 };

@@ -32,6 +32,8 @@ export default function AspectRatioExplorer() {
     const [primaryUseCase, setPrimaryUseCase] = useState('');
     const [visualFeel, setVisualFeel] = useState('');
     const [isDefault, setIsDefault] = useState(false);
+    const [imageDefaultAR, setImageDefaultAR] = useState(false);
+    const [videoDefaultAR, setVideoDefaultAR] = useState(false);
     const [isSystem, setIsSystem] = useState(false);
 
     useEffect(() => {
@@ -98,8 +100,10 @@ export default function AspectRatioExplorer() {
             setValue(ratio.value);
             setPrimaryUseCase(ratio.primaryUseCase || '');
             setVisualFeel(ratio.visualFeel || '');
-            setIsDefault(ratio.isDefault);
-            setIsSystem(ratio.isSystem);
+            setIsDefault(ratio.isDefault || false);
+            setImageDefaultAR(ratio.imageDefaultAR || false);
+            setVideoDefaultAR(ratio.videoDefaultAR || false);
+            setIsSystem(ratio.isSystem || false);
         } else {
             setEditingRatio(null);
             setName('');
@@ -107,6 +111,8 @@ export default function AspectRatioExplorer() {
             setPrimaryUseCase('');
             setVisualFeel('');
             setIsDefault(false);
+            setImageDefaultAR(false);
+            setVideoDefaultAR(false);
             setIsSystem(isAdmin); // Default to system for admins
         }
         setIsFormModalOpen(true);
@@ -123,7 +129,9 @@ export default function AspectRatioExplorer() {
                     value,
                     primaryUseCase,
                     visualFeel,
-                    isDefault
+                    isDefault,
+                    imageDefaultAR,
+                    videoDefaultAR
                 });
             } else {
                 result = await createAspectRatio({
@@ -132,6 +140,8 @@ export default function AspectRatioExplorer() {
                     primaryUseCase,
                     visualFeel,
                     isDefault,
+                    imageDefaultAR,
+                    videoDefaultAR,
                     isSystem
                 });
             }
@@ -171,13 +181,24 @@ export default function AspectRatioExplorer() {
                         <select
                             value={user?.settings?.defaultAspectRatioImage || ''}
                             onChange={async (e) => {
+                                const newId = e.target.value;
                                 if (user) {
+                                    // 1. Update User Profile
                                     await updateUserProfile(user.id, {
                                         settings: {
                                             ...user.settings,
-                                            defaultAspectRatioImage: e.target.value
+                                            defaultAspectRatioImage: newId
                                         }
                                     });
+
+                                    // 2. Sync AspectRatio records
+                                    for (const ratio of ratios) {
+                                        const isNewDefault = ratio.id === newId;
+                                        if (ratio.imageDefaultAR !== isNewDefault) {
+                                            await updateAspectRatio(ratio.id, { imageDefaultAR: isNewDefault });
+                                        }
+                                    }
+                                    await loadRatios();
                                 }
                             }}
                             className={styles.select}
@@ -196,13 +217,24 @@ export default function AspectRatioExplorer() {
                         <select
                             value={user?.settings?.defaultAspectRatioVideo || ''}
                             onChange={async (e) => {
+                                const newId = e.target.value;
                                 if (user) {
+                                    // 1. Update User Profile
                                     await updateUserProfile(user.id, {
                                         settings: {
                                             ...user.settings,
-                                            defaultAspectRatioVideo: e.target.value
+                                            defaultAspectRatioVideo: newId
                                         }
                                     });
+
+                                    // 2. Sync AspectRatio records
+                                    for (const ratio of ratios) {
+                                        const isNewDefault = ratio.id === newId;
+                                        if (ratio.videoDefaultAR !== isNewDefault) {
+                                            await updateAspectRatio(ratio.id, { videoDefaultAR: isNewDefault });
+                                        }
+                                    }
+                                    await loadRatios();
                                 }
                             }}
                             className={styles.select}
@@ -252,6 +284,8 @@ export default function AspectRatioExplorer() {
                                     <span className={styles.valueBadge}>{ratio.value}</span>
                                     {ratio.isSystem && <span className={styles.systemBadge}>System</span>}
                                     {ratio.isDefault && <span className={styles.defaultBadge}>Default</span>}
+                                    {ratio.imageDefaultAR && <span className={styles.defaultBadge}>Image Default</span>}
+                                    {ratio.videoDefaultAR && <span className={styles.defaultBadge}>Video Default</span>}
                                 </div>
                                 <div className={styles.meta}>
                                     {ratio.primaryUseCase && <span>{ratio.primaryUseCase} • </span>}
@@ -333,7 +367,27 @@ export default function AspectRatioExplorer() {
                                 checked={isDefault}
                                 onChange={e => setIsDefault(e.target.checked)}
                             />
-                            <span>Set as default aspect ratio</span>
+                            <span>General Default</span>
+                        </label>
+                    </div>
+                    <div className={styles.formGroup}>
+                        <label className={styles.checkboxLabel}>
+                            <input
+                                type="checkbox"
+                                checked={imageDefaultAR}
+                                onChange={e => setImageDefaultAR(e.target.checked)}
+                            />
+                            <span>Default for Images</span>
+                        </label>
+                    </div>
+                    <div className={styles.formGroup}>
+                        <label className={styles.checkboxLabel}>
+                            <input
+                                type="checkbox"
+                                checked={videoDefaultAR}
+                                onChange={e => setVideoDefaultAR(e.target.checked)}
+                            />
+                            <span>Default for Videos</span>
                         </label>
                     </div>
                     {isAdmin && !editingRatio && (
@@ -367,8 +421,6 @@ export default function AspectRatioExplorer() {
                 confirmLabel="Delete"
                 variant="danger"
             />
-
-
-        </div >
+        </div>
     );
 }

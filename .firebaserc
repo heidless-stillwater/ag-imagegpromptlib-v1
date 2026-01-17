@@ -6,9 +6,10 @@
     "heidless-firebase-2": {
       "hosting": {
         "app": [
-          "heidless-firebase-2"
+          "promptvault-v1-0"
         ]
       }
     }
-  }
+  },
+  "etags": {}
 }
